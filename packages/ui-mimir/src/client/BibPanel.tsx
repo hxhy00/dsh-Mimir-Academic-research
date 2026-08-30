@@ -16,6 +16,7 @@ import type { BibEntry } from 'dsh-mimir/types'
 import type {
   ResearchBibView, ResearchFailureView, ResearchImportCounts, ResearchPapersView,
 } from './controller.ts'
+import { ConfirmDialog } from './ConfirmDialog.tsx'
 import {
   bibDraftFromEntry, bibEntryFromDraft, bibSummaryOf, COMMON_BIB_FIELDS, failureCopy,
   SAVE_KEYS, type BibEntryDraft, type ResearchT,
@@ -180,6 +181,8 @@ export function BibPanel({
   // The entry key whose field editor is open; null when none.
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  // The entry key awaiting the delete confirmation; null when none.
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
 
   // Load on open and on every project switch while open; a switch also drops
   // the open editor (its draft belongs to the previous project's file).
@@ -192,7 +195,6 @@ export function BibPanel({
   const bibBusy = currentBib === null || currentBib.saveState === 'saving' || currentBib.saveState === 'conflict'
 
   const removeEntry = (key: string): void => {
-    if (!window.confirm(t('bib.confirmDelete'))) return
     setActionError(null)
     void deleteBibEntry(key).then((failure) => {
       if (failure === null && editingKey === key) setEditingKey(null)
@@ -309,7 +311,7 @@ export function BibPanel({
                       className={css.btn}
                       data-danger
                       disabled={bibBusy}
-                      onClick={() => { removeEntry(entry.key) }}
+                      onClick={() => { setPendingDelete(entry.key) }}
                     >
                       {t('bib.delete')}
                     </button>
@@ -390,6 +392,17 @@ export function BibPanel({
           )}
         </>
       )}
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={t('bib.confirmDelete')}
+        confirmLabel={t('bib.delete')}
+        onConfirm={() => {
+          if (pendingDelete !== null) removeEntry(pendingDelete)
+          setPendingDelete(null)
+        }}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null) }}
+        t={t}
+      />
     </div>
   )
 }

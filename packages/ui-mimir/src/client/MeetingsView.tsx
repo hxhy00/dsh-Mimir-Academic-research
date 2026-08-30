@@ -25,8 +25,8 @@ import type { ResearchKey } from './locales.ts'
 import {
   failureCopy, figureUrl, formatSize, meetingDeckUrl, relativeTime, type ResearchT,
 } from './view-common.ts'
+import { ConfirmDialog } from './ConfirmDialog.tsx'
 import { EmptyState } from './EmptyState.tsx'
-import { ViewHead } from './ViewHead.tsx'
 import css from './ResearchPanel.module.css'
 
 /** The four section switches in slide order. */
@@ -63,6 +63,7 @@ function DeckRow({ projectId, file, sizeBytes, updatedAt, onDelete, busy, t }: {
   readonly busy: boolean
   readonly t: ResearchT
 }) {
+  const [pending, setPending] = useState(false)
   return (
     <li className={css.deckRow}>
       <span className={css.deckName} title={file}>{file}</span>
@@ -75,10 +76,18 @@ function DeckRow({ projectId, file, sizeBytes, updatedAt, onDelete, busy, t }: {
         className={css.btn}
         data-danger
         disabled={busy}
-        onClick={() => { if (window.confirm(t('meetings.confirmDelete'))) onDelete(file) }}
+        onClick={() => { setPending(true) }}
       >
         {t('meetings.delete')}
       </button>
+      <ConfirmDialog
+        open={pending}
+        title={t('meetings.confirmDelete')}
+        confirmLabel={t('meetings.delete')}
+        onConfirm={() => { onDelete(file); setPending(false) }}
+        onOpenChange={(open) => { if (!open) setPending(false) }}
+        t={t}
+      />
     </li>
   )
 }
@@ -241,21 +250,14 @@ export function MeetingsView({
 
   if (projectId === null) {
     return (
-      <section>
-        <ViewHead title={t('tab.meetings')} subtitle={t('view.meetings.subtitle')} />
+      <section className={css.viewBody}>
         <EmptyState glyph="🎞️">{t('meetings.noProject')}</EmptyState>
       </section>
     )
   }
 
   return (
-    <section>
-      <ViewHead title={t('tab.meetings')} subtitle={t('view.meetings.subtitle')}>
-        <button type="button" className={css.btnPrimary} disabled={busy} onClick={generate}>
-          {busy ? t('meetings.generating') : t('meetings.generate')}
-        </button>
-      </ViewHead>
-
+    <section className={css.viewBody}>
       <div className={css.meetingForm}>
         <div className={css.meetingFormRow}>
           <input
@@ -466,6 +468,12 @@ export function MeetingsView({
       )}
 
       <p className={css.hint}>{t('meetings.skillHint')}</p>
+
+      <div className={css.viewActions}>
+        <button type="button" className={css.btnPrimary} disabled={busy} onClick={generate}>
+          {busy ? t('meetings.generating') : t('meetings.generate')}
+        </button>
+      </div>
     </section>
   )
 }

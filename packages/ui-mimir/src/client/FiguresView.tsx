@@ -27,8 +27,8 @@ import { groupFigures, type FigureGroup } from './figure-groups.ts'
 import {
   failureCopy, FIGURE_ACCEPT_EXTENSIONS, figureUrl, filterDropFiles, formatSize, type ResearchT,
 } from './view-common.ts'
+import { ConfirmDialog } from './ConfirmDialog.tsx'
 import { EmptyState } from './EmptyState.tsx'
-import { ViewHead } from './ViewHead.tsx'
 import css from './ResearchPanel.module.css'
 
 /** The LaTeX figure block one card's copy button puts on the clipboard. */
@@ -140,6 +140,8 @@ export function FiguresView({
   // The group stem whose inline editor is open.
   const [editingStem, setEditingStem] = useState<string | null>(null)
   const [savingEdit, setSavingEdit] = useState(false)
+  // The group awaiting the delete confirmation; null when none.
+  const [pendingDelete, setPendingDelete] = useState<FigureGroup | null>(null)
   // The in-flight AI organize request: the list signature it started from and
   // its start time. A changed signature means the agent's writes landed.
   const [organizing, setOrganizing] = useState<{ anchor: string; startedAt: number } | null>(null)
@@ -190,7 +192,6 @@ export function FiguresView({
 
   /** Delete every sibling of one group, stopping at the first failure. */
   const removeGroup = (group: FigureGroup): void => {
-    if (!window.confirm(t('figures.confirmDelete'))) return
     setActionError(null)
     void (async (): Promise<void> => {
       for (const entry of group.entries) {
@@ -313,19 +314,6 @@ export function FiguresView({
           <span>{t('figures.dropHint')}</span>
         </div>
       )}
-      <ViewHead title={t('tab.figures')} subtitle={t('view.figures.subtitle')}>
-        <button
-          type="button"
-          className={css.btnPrimary}
-          disabled={upload !== null}
-          onClick={() => { fileInput.current?.click() }}
-        >
-          {upload === null ? t('figures.upload') : `${t('figures.uploading')} ${upload.done}/${upload.total}`}
-        </button>
-        <button type="button" className={css.btn} onClick={() => { loadFigures(projectId, true) }}>
-          {t('figures.refresh')}
-        </button>
-      </ViewHead>
       <input
         ref={fileInput}
         type="file"
@@ -431,7 +419,7 @@ export function FiguresView({
                       type="button"
                       className={css.figureAction}
                       data-danger
-                      onClick={() => { removeGroup(group) }}
+                      onClick={() => { setPendingDelete(group) }}
                     >
                       {t('figures.delete')}
                     </button>
@@ -461,6 +449,30 @@ export function FiguresView({
           <img src={url(preview)} alt={preview.name} />
         </button>
       )}
+      <div className={css.viewActions}>
+        <button
+          type="button"
+          className={css.btnPrimary}
+          disabled={upload !== null}
+          onClick={() => { fileInput.current?.click() }}
+        >
+          {upload === null ? t('figures.upload') : `${t('figures.uploading')} ${upload.done}/${upload.total}`}
+        </button>
+        <button type="button" className={css.btn} onClick={() => { loadFigures(projectId, true) }}>
+          {t('figures.refresh')}
+        </button>
+      </div>
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={t('figures.confirmDelete')}
+        confirmLabel={t('figures.delete')}
+        onConfirm={() => {
+          if (pendingDelete !== null) removeGroup(pendingDelete)
+          setPendingDelete(null)
+        }}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null) }}
+        t={t}
+      />
     </div>
   )
 }

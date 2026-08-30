@@ -38,8 +38,6 @@ import type {
   ResearchFiguresResult,
   ResearchImportBibResult,
   ResearchImportPaperResult,
-  ResearchImportProjectRequest,
-  ResearchImportProjectResult,
   ResearchImportWikiMode,
   ResearchImportWikiResult,
   ResearchListBackupsResult,
@@ -98,7 +96,6 @@ import * as subscriptions from './services/subscriptions.ts'
 import * as experiment from './services/experiment.ts'
 import * as server from './services/server.ts'
 import * as wikiAdmin from './services/wiki-admin.ts'
-import * as importProject from './services/import-project.ts'
 import * as venue from './services/venue.ts'
 import * as meeting from './services/meeting.ts'
 import * as ledger from './services/ledger.ts'
@@ -202,12 +199,6 @@ export class ResearchService extends TypertRemoteService {
   @Remote('listProjects')
   listProjects(): Promise<ResearchListProjectsResult> {
     return wikiAdmin.listProjects(this.deps)
-  }
-
-  // import-project domain
-  @Remote('importProject')
-  importProject(request: ResearchImportProjectRequest): Promise<ResearchImportProjectResult> {
-    return importProject.importProject(this.deps, request)
   }
 
   // paper domain: outline / source / bibliography / compile

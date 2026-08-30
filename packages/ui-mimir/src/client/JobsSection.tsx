@@ -14,6 +14,7 @@ import type { ExperimentRecord, JobRecord } from 'dsh-mimir/types'
 import type {
   ResearchFailureView, ResearchJobsView, ResearchProjectSlice, ResearchServersView,
 } from './controller.ts'
+import { ConfirmDialog } from './ConfirmDialog.tsx'
 import { failureCopy, relativeTime, type ResearchT } from './view-common.ts'
 import css from './ResearchPanel.module.css'
 
@@ -50,6 +51,8 @@ export function JobsSection({
   const [actionError, setActionError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [openOutput, setOpenOutput] = useState<Record<string, boolean>>({})
+  // The job id awaiting the delete confirmation; null when none.
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
 
   useEffect(() => { ensureJobs() }, [ensureJobs])
   // Poll only while a status flip is still coming; a settled list is static.
@@ -84,9 +87,8 @@ export function JobsSection({
       })
       .finally(() => { setSubmitting(false) })
   }
-  const removeJob = (record: JobRecord): void => {
-    if (!window.confirm(t('jobs.confirmDelete'))) return
-    void deleteJob(record.id).then((failure) => {
+  const removeJob = (id: string): void => {
+    void deleteJob(id).then((failure) => {
       setActionError(failure === null ? null : `${t('jobs.deleteFailed')}：${failure.message}`)
     })
   }
@@ -217,7 +219,7 @@ export function JobsSection({
                         type="button"
                         className={css.btn}
                         data-danger
-                        onClick={() => { removeJob(record) }}
+                        onClick={() => { setPendingDelete(record.id) }}
                       >
                         {t('jobs.delete')}
                       </button>
@@ -229,6 +231,17 @@ export function JobsSection({
           </table>
         </div>
       )}
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={t('jobs.confirmDelete')}
+        confirmLabel={t('jobs.delete')}
+        onConfirm={() => {
+          if (pendingDelete !== null) removeJob(pendingDelete)
+          setPendingDelete(null)
+        }}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null) }}
+        t={t}
+      />
     </div>
   )
 }

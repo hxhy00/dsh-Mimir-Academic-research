@@ -21,7 +21,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import * as Dialog from '@radix-ui/react-dialog'
+import * as Tabs from '@radix-ui/react-tabs'
 import type { ArxivEntry, PaperRecord, ResearchProjectView, WebSearchEntry } from 'dsh-mimir/types'
 import type {
   ResearchArxivSearchView, ResearchFailureView, ResearchImportCounts, ResearchPapersView, ResearchWebSearchView,
@@ -31,10 +32,11 @@ import { arxivIdFromUrl, collectTags, failureCopy, filterPapers, paperPdfUrl, ty
 import { appendReadingNote, parseReadingNotes } from './paper-notes.ts'
 import { buildPaperScorePrompt } from './paper-score.ts'
 import { buildRelatedWorkPrompt } from './related-work.ts'
+import { ConfirmDialog } from './ConfirmDialog.tsx'
 import { EmptyState } from './EmptyState.tsx'
 import { SubscriptionsBar } from './SubscriptionsBar.tsx'
-import { ViewHead } from './ViewHead.tsx'
 import { ZoteroSection } from './ZoteroSection.tsx'
+import { SxngConfigPanel } from './ConfigPanels.tsx'
 import css from './ResearchPanel.module.css'
 
 /** Fields the inline editor saves back through `updatePaper`. */
@@ -133,43 +135,35 @@ function PaperPdfSection({ paper, fetchPaperPdf, updatePaper, onError, t }: {
           </button>
         )}
       </div>
-      {paper.pdfPath !== undefined && fullscreen && createPortal(
-        <div
-          className={css.paperPdfOverlay}
-          role="dialog"
-          aria-label={`${t('papers.readPdf')}：${paper.title}`}
-          tabIndex={-1}
-          // Focus the overlay on open so Esc reaches it; Esc closes only the
-          // overlay (stopPropagation keeps the panel's Esc-to-close).
-          ref={(element) => { element?.focus() }}
-          onKeyDown={(event) => {
-            if (event.key !== 'Escape') return
-            event.stopPropagation()
-            event.preventDefault()
-            setFullscreen(false)
-          }}
-        >
-          <div className={css.paperPdfOverlayHead}>
-            <span className={css.paperPdfOverlayTitle} title={paper.title}>{paper.title}</span>
-            <button
-              type="button"
-              className={css.btn}
-              onClick={() => { setFullscreen(false) }}
-            >
-              {t('papers.exitFullscreen')}
-            </button>
-          </div>
-          <div className={css.paperPdfOverlayBody}>
-            <iframe
-              className={css.paperPdfOverlayFrame}
-              title={`${t('papers.readPdf')}：${paper.title}`}
-              src={paperPdfUrl(paper.arxivId, version)}
-            />
-            <PaperNotesPanel paper={paper} updatePaper={updatePaper} onError={onError} t={t} />
-          </div>
-        </div>,
-        document.body,
-      )}
+      <Dialog.Root open={fullscreen} onOpenChange={setFullscreen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className={css.paperPdfOverlay} />
+          <Dialog.Content
+            className={css.paperPdfOverlayContent}
+            aria-label={`${t('papers.readPdf')}：${paper.title}`}
+            onEscapeKeyDown={(event) => { event.stopPropagation() }}
+          >
+            <div className={css.paperPdfOverlayHead}>
+              <Dialog.Title asChild>
+                <span className={css.paperPdfOverlayTitle} title={paper.title}>{paper.title}</span>
+              </Dialog.Title>
+              <Dialog.Close asChild>
+                <button type="button" className={css.btn}>
+                  {t('papers.exitFullscreen')}
+                </button>
+              </Dialog.Close>
+            </div>
+            <div className={css.paperPdfOverlayBody}>
+              <iframe
+                className={css.paperPdfOverlayFrame}
+                title={`${t('papers.readPdf')}：${paper.title}`}
+                src={paperPdfUrl(paper.arxivId, version)}
+              />
+              <PaperNotesPanel paper={paper} updatePaper={updatePaper} onError={onError} t={t} />
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   )
 }
@@ -337,65 +331,6 @@ function RelevanceChip({ paper, projectId, projects, t }: {
  * @param props - the web search slice, the imported-id set, the in-flight
  * import id, the import verb, the retry verb, and copy.
  */
-/** Collapsible editor for sxng-cli's global configuration. */
-function SxngConfigPanel({ config, getConfig, saveConfig, t }: {
-  readonly config: ResearchSxngConfigView
-  readonly getConfig: () => void
-  readonly saveConfig: (input: {
-    baseUrl?: string; defaultEngine?: string; allowedEngines?: readonly string[]; defaultLimit?: number
-    defaultFormat?: 'md' | 'json'; useProxy?: boolean; proxyUrl?: string; timeout?: number
-    ollamaApiKey?: string; redundancyThreshold?: number; redundancyBigramThreshold?: number
-  }) => Promise<ResearchFailureView | null>
-  readonly t: ResearchT
-}) {
-  const [open, setOpen] = useState(false)
-  const [draft, setDraft] = useState<Partial<{
-    baseUrl: string; defaultEngine: string; allowedEngines: string; defaultLimit: string; defaultFormat: 'md' | 'json'
-    useProxy: boolean; proxyUrl: string; timeout: string; ollamaApiKey: string; redundancyThreshold: string; redundancyBigramThreshold: string
-  }>>({})
-  const [saving, setSaving] = useState(false)
-  const [failure, setFailure] = useState<ResearchFailureView | null>(null)
-  useEffect(() => { getConfig() }, [getConfig])
-  const toggle = (): void => {
-    if (!open) setDraft({ baseUrl: config.baseUrl, defaultEngine: config.defaultEngine, allowedEngines: config.allowedEngines.join(', '), defaultLimit: String(config.defaultLimit), defaultFormat: config.defaultFormat, useProxy: config.useProxy, proxyUrl: config.proxyUrl, timeout: String(config.timeout), ollamaApiKey: '', redundancyThreshold: String(config.redundancyThreshold), redundancyBigramThreshold: String(config.redundancyBigramThreshold) })
-    setFailure(null); setOpen(value => !value)
-  }
-  const save = (): void => {
-    if (saving) return
-    setSaving(true); setFailure(null)
-    void saveConfig({
-      ...(draft.baseUrl?.trim() === '' || draft.baseUrl === undefined ? {} : { baseUrl: draft.baseUrl.trim() }),
-      ...(draft.defaultEngine === undefined ? {} : { defaultEngine: draft.defaultEngine }),
-      ...(draft.allowedEngines === undefined ? {} : { allowedEngines: draft.allowedEngines.split(',').map(value => value.trim()).filter(Boolean) }),
-      ...(draft.defaultLimit === undefined ? {} : { defaultLimit: Number(draft.defaultLimit) }),
-      ...(draft.defaultFormat === undefined ? {} : { defaultFormat: draft.defaultFormat }),
-      ...(draft.useProxy === undefined ? {} : { useProxy: draft.useProxy }),
-      ...(draft.proxyUrl === undefined ? {} : { proxyUrl: draft.proxyUrl }),
-      ...(draft.timeout === undefined ? {} : { timeout: Number(draft.timeout) }),
-      ...(draft.ollamaApiKey === undefined || draft.ollamaApiKey === '' ? {} : { ollamaApiKey: draft.ollamaApiKey }),
-      ...(draft.redundancyThreshold === undefined ? {} : { redundancyThreshold: Number(draft.redundancyThreshold) }),
-      ...(draft.redundancyBigramThreshold === undefined ? {} : { redundancyBigramThreshold: Number(draft.redundancyBigramThreshold) }),
-    }).then(result => { if (result !== null) setFailure(result); else setOpen(false) }).finally(() => { setSaving(false) })
-  }
-  return <section className={css.imageGenPanel}>
-    <button type="button" className={css.imageGenToggle} aria-expanded={open} onClick={toggle}><span aria-hidden>{open ? '▾' : '▸'}</span>{t('papers.sxngConfig')}{config.configured && <span className={css.imageGenBadge}>{t('papers.sxngConfigured')}</span>}</button>
-    {open && <div className={css.meetingFormRow}>
-      <input className={css.input} value={draft.baseUrl ?? ''} placeholder="baseUrl" aria-label="baseUrl" onChange={e => setDraft({ ...draft, baseUrl: e.target.value })} />
-      <input className={css.input} value={draft.defaultEngine ?? ''} placeholder="defaultEngine" aria-label="defaultEngine" onChange={e => setDraft({ ...draft, defaultEngine: e.target.value })} />
-      <input className={css.input} value={draft.allowedEngines ?? ''} placeholder="allowedEngines (comma separated)" aria-label="allowedEngines" onChange={e => setDraft({ ...draft, allowedEngines: e.target.value })} />
-      <input className={css.input} type="number" value={draft.defaultLimit ?? ''} placeholder="defaultLimit" aria-label="defaultLimit" onChange={e => setDraft({ ...draft, defaultLimit: e.target.value })} />
-      <select className={css.input} value={draft.defaultFormat ?? 'md'} aria-label="defaultFormat" onChange={e => setDraft({ ...draft, defaultFormat: e.target.value as 'md' | 'json' })}><option value="md">md</option><option value="json">json</option></select>
-      <label><input type="checkbox" checked={draft.useProxy ?? false} onChange={e => setDraft({ ...draft, useProxy: e.target.checked })} /> useProxy</label>
-      <input className={css.input} value={draft.proxyUrl ?? ''} placeholder="proxyUrl" aria-label="proxyUrl" onChange={e => setDraft({ ...draft, proxyUrl: e.target.value })} />
-      <input className={css.input} type="number" value={draft.timeout ?? ''} placeholder="timeout (ms)" aria-label="timeout" onChange={e => setDraft({ ...draft, timeout: e.target.value })} />
-      <input className={css.input} type="password" value={draft.ollamaApiKey ?? ''} placeholder={config.ollamaApiKeyPreview || 'ollamaApiKey'} aria-label="ollamaApiKey" onChange={e => setDraft({ ...draft, ollamaApiKey: e.target.value })} />
-      <input className={css.input} type="number" step="0.01" value={draft.redundancyThreshold ?? ''} placeholder="redundancyThreshold" aria-label="redundancyThreshold" onChange={e => setDraft({ ...draft, redundancyThreshold: e.target.value })} />
-      <input className={css.input} type="number" step="0.01" value={draft.redundancyBigramThreshold ?? ''} placeholder="redundancyBigramThreshold" aria-label="redundancyBigramThreshold" onChange={e => setDraft({ ...draft, redundancyBigramThreshold: e.target.value })} />
-      <button type="button" className={css.btnPrimary} disabled={saving} onClick={save}>{saving ? t('papers.sxngSaving') : t('papers.sxngSave')}</button>
-      {failure !== null && <p className={css.failure} role="alert">{failure.message}</p>}
-    </div>}
-  </section>
-}
 
 function WebSearchPanel({
   webSearch, importedIds, importing, importEntry, searchWeb, t,
@@ -571,6 +506,8 @@ export function PapersView({
   const [draftNotes, setDraftNotes] = useState('')
   const [tagInput, setTagInput] = useState('')
   const [saving, setSaving] = useState(false)
+  // The paper awaiting the delete confirmation; null when none.
+  const [pendingDelete, setPendingDelete] = useState<PaperRecord | null>(null)
   // In-flight AI scoring requests, keyed by arXiv id; the value is the
   // request's start time for the timeout.
   const [scoring, setScoring] = useState<Readonly<Record<string, number>>>({})
@@ -669,7 +606,6 @@ export function PapersView({
       .finally(() => { setImporting(null) })
   }
   const removeEntry = (paper: PaperRecord): void => {
-    if (!window.confirm(t('papers.confirmDelete'))) return
     setActionError(null)
     void removePaper(paper.arxivId).then((failure) => {
       setActionError(failure === null ? null : `${t('papers.deleteFailed')}：${failure.message}`)
@@ -718,7 +654,6 @@ export function PapersView({
 
   return (
     <div className={css.papers}>
-      <ViewHead title={t('tab.papers')} subtitle={t('view.papers.subtitle')} />
       <SubscriptionsBar
         subscriptions={arxivSubscriptions}
         importedIds={importedIds}
@@ -735,21 +670,24 @@ export function PapersView({
           submitSearch()
         }}
       >
-        <div className={css.papersSourceTabs} role="tablist" aria-label={t('papers.search')}>
-          {(['arxiv', 'web'] as const).map(tab => (
-            <button
-              key={tab}
-              type="button"
-              role="tab"
-              aria-selected={source === tab}
-              className={css.paperTab}
-              data-active={source === tab || undefined}
-              onClick={() => { setSource(tab) }}
-            >
-              {t(tab === 'arxiv' ? 'papers.sourceArxiv' : 'papers.sourceWeb')}
-            </button>
-          ))}
-        </div>
+        <Tabs.Root
+          className={css.papersSourceTabs}
+          value={source}
+          onValueChange={(value) => { setSource(value as 'arxiv' | 'web') }}
+        >
+          <Tabs.List aria-label={t('papers.search')}>
+            {(['arxiv', 'web'] as const).map(tab => (
+              <Tabs.Trigger
+                key={tab}
+                value={tab}
+                className={css.paperTab}
+                data-active={source === tab || undefined}
+              >
+                {t(tab === 'arxiv' ? 'papers.sourceArxiv' : 'papers.sourceWeb')}
+              </Tabs.Trigger>
+            ))}
+          </Tabs.List>
+        </Tabs.Root>
         <input
           className={css.input}
           value={query}
@@ -1072,7 +1010,7 @@ export function PapersView({
                         type="button"
                         className={css.btn}
                         data-danger
-                        onClick={() => { removeEntry(paper) }}
+                        onClick={() => { setPendingDelete(paper) }}
                       >
                         {t('papers.delete')}
                       </button>
@@ -1084,6 +1022,17 @@ export function PapersView({
           )}
         </>
       )}
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={t('papers.confirmDelete')}
+        confirmLabel={t('papers.delete')}
+        onConfirm={() => {
+          if (pendingDelete !== null) removeEntry(pendingDelete)
+          setPendingDelete(null)
+        }}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null) }}
+        t={t}
+      />
     </div>
   )
 }

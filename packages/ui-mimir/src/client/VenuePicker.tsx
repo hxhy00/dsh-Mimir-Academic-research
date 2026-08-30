@@ -5,10 +5,15 @@
  * a venue writes `template/TEMPLATE.md` into the paper directory host-side;
  * the handoff button then sends the assembled re-layout prompt to the
  * current session's agent.
+ *
+ * The popover behaviour (open state, click-outside, Esc-to-close, focus
+ * management, `aria-expanded`/`aria-haspopup` wiring) comes from Radix's
+ * Popover primitive; this component owns only the copy and the verbs.
  * @module dsh-client-ui-mimir/src/client/VenuePicker
  */
 
 import { useEffect, useRef, useState } from 'react'
+import * as Popover from '@radix-ui/react-popover'
 import type { VenueTemplateView, VenueView } from 'dsh-mimir/types'
 import type { ResearchFailureView, ResearchVenueTemplatesView } from './controller.ts'
 import type { ResearchT } from './view-common.ts'
@@ -54,24 +59,12 @@ export function VenuePicker({
   const [busy, setBusy] = useState(false)
   const [customName, setCustomName] = useState('')
   const [error, setError] = useState<string | null>(null)
-  // Uploaded kit file names waiting for a custom name to apply under.
   const [uploaded, setUploaded] = useState<readonly string[]>([])
-  const rootRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (open) ensureVenueTemplates()
   }, [open, ensureVenueTemplates])
-
-  // Click-outside closes the popover.
-  useEffect(() => {
-    if (!open) return
-    const onDown = (event: PointerEvent): void => {
-      if (rootRef.current !== null && !rootRef.current.contains(event.target as Node)) setOpen(false)
-    }
-    document.addEventListener('pointerdown', onDown)
-    return () => { document.removeEventListener('pointerdown', onDown) }
-  }, [open])
 
   const run = async (action: () => Promise<ResearchFailureView | null>): Promise<void> => {
     setBusy(true)
@@ -112,102 +105,109 @@ export function VenuePicker({
 
   const groups = groupBySeries(venueTemplates.list)
   return (
-    <div ref={rootRef} className={css.venuePicker}>
-      <button
-        type="button"
-        className={css.venueChip}
-        data-set={venue !== undefined || undefined}
-        aria-expanded={open}
-        title={venue === undefined ? t('venue.pick') : `${t('venue.current')}：${venue.name}`}
-        onClick={() => { setOpen(previous => !previous) }}
-      >
-        {venue === undefined ? t('venue.pick') : venue.name}
-      </button>
-      {venue !== undefined && (
-        <button
-          type="button"
-          className={css.btn}
-          disabled={busy}
-          title={t('venue.formatHint')}
-          onClick={() => { void formatToVenue() }}
-        >
-          {t('venue.format')}
-        </button>
-      )}
-      {open && (
-        <div className={css.venuePopover} role="dialog" aria-label={t('venue.pick')}>
-          <p className={css.venuePopoverTitle}>{t('venue.builtins')}</p>
-          {venueTemplates.status === 'loading' && <p className={css.hint}>{t('venue.loading')}</p>}
-          {venueTemplates.status === 'error' && <p className={css.failure}>{venueTemplates.failure?.message}</p>}
-          {groups.map(group => (
-            <div key={group.series} className={css.venueGroup}>
-              <p className={css.venueGroupTitle}>{group.series}</p>
-              {group.list.map(template => (
-                <button
-                  key={template.id}
-                  type="button"
-                  className={css.venueOption}
-                  data-active={venue?.id === template.id || undefined}
-                  disabled={busy}
-                  title={template.url}
-                  onClick={() => { void run(() => applyVenueTemplate(projectId, { templateId: template.id })) }}
-                >
-                  {template.name}
-                </button>
-              ))}
-            </div>
-          ))}
-          <p className={css.venuePopoverTitle}>{t('venue.custom')}</p>
-          <p className={css.hint}>{t('venue.customHint')}</p>
-          <div className={css.venueCustomRow}>
-            <input
-              ref={fileRef}
-              type="file"
-              multiple
-              accept=".cls,.sty,.tex,.bst,.bbx,.cbx,.clo,.def,.cfg,.md,.txt,.pdf"
-              className={css.venueFileInput}
-              disabled={busy}
-              onChange={(event) => {
-                const files = [...(event.target.files ?? [])]
-                void onUpload(files)
-              }}
-            />
-          </div>
-          {uploaded.length > 0 && (
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <div className={css.venuePicker}>
+        <Popover.Trigger asChild>
+          <button
+            type="button"
+            className={css.venueChip}
+            data-set={venue !== undefined || undefined}
+            title={venue === undefined ? t('venue.pick') : `${t('venue.current')}：${venue.name}`}
+          >
+            {venue === undefined ? t('venue.pick') : venue.name}
+          </button>
+        </Popover.Trigger>
+        {venue !== undefined && (
+          <button
+            type="button"
+            className={css.btn}
+            disabled={busy}
+            title={t('venue.formatHint')}
+            onClick={() => { void formatToVenue() }}
+          >
+            {t('venue.format')}
+          </button>
+        )}
+        <Popover.Portal>
+          <Popover.Content
+            className={css.venuePopover}
+            align="start"
+            sideOffset={6}
+            onOpenAutoFocus={(event) => { event.preventDefault() }}
+          >
+            <p className={css.venuePopoverTitle}>{t('venue.builtins')}</p>
+            {venueTemplates.status === 'loading' && <p className={css.hint}>{t('venue.loading')}</p>}
+            {venueTemplates.status === 'error' && <p className={css.failure}>{venueTemplates.failure?.message}</p>}
+            {groups.map(group => (
+              <div key={group.series} className={css.venueGroup}>
+                <p className={css.venueGroupTitle}>{group.series}</p>
+                {group.list.map(template => (
+                  <button
+                    key={template.id}
+                    type="button"
+                    className={css.venueOption}
+                    data-active={venue?.id === template.id || undefined}
+                    disabled={busy}
+                    title={template.url}
+                    onClick={() => { void run(() => applyVenueTemplate(projectId, { templateId: template.id })) }}
+                  >
+                    {template.name}
+                  </button>
+                ))}
+              </div>
+            ))}
+            <p className={css.venuePopoverTitle}>{t('venue.custom')}</p>
+            <p className={css.hint}>{t('venue.customHint')}</p>
             <div className={css.venueCustomRow}>
               <input
-                className={css.input}
-                value={customName}
-                placeholder={t('venue.customNamePlaceholder')}
-                aria-label={t('venue.customNamePlaceholder')}
-                onChange={event => { setCustomName(event.target.value) }}
+                ref={fileRef}
+                type="file"
+                multiple
+                accept=".cls,.sty,.tex,.bst,.bbx,.cbx,.clo,.def,.cfg,.md,.txt,.pdf"
+                className={css.venueFileInput}
+                disabled={busy}
+                onChange={(event) => {
+                  const files = [...(event.target.files ?? [])]
+                  void onUpload(files)
+                }}
               />
+            </div>
+            {uploaded.length > 0 && (
+              <div className={css.venueCustomRow}>
+                <input
+                  className={css.input}
+                  value={customName}
+                  placeholder={t('venue.customNamePlaceholder')}
+                  aria-label={t('venue.customNamePlaceholder')}
+                  onChange={event => { setCustomName(event.target.value) }}
+                />
+                <button
+                  type="button"
+                  className={css.btnPrimary}
+                  disabled={busy || customName.trim() === ''}
+                  onClick={() => { void run(() => applyVenueTemplate(projectId, { customName: customName.trim() })) }}
+                >
+                  {t('venue.applyCustom')}
+                </button>
+              </div>
+            )}
+            {uploaded.length > 0 && (
+              <p className={css.hint}>{t('venue.uploadedFiles')}：{uploaded.join('，')}</p>
+            )}
+            {venue !== undefined && (
               <button
                 type="button"
-                className={css.btnPrimary}
-                disabled={busy || customName.trim() === ''}
-                onClick={() => { void run(() => applyVenueTemplate(projectId, { customName: customName.trim() })) }}
+                className={css.venueClear}
+                disabled={busy}
+                onClick={() => { void run(() => clearVenueTemplate(projectId)) }}
               >
-                {t('venue.applyCustom')}
+                {t('venue.clear')}
               </button>
-            </div>
-          )}
-          {uploaded.length > 0 && (
-            <p className={css.hint}>{t('venue.uploadedFiles')}：{uploaded.join('，')}</p>
-          )}
-          {venue !== undefined && (
-            <button
-              type="button"
-              className={css.venueClear}
-              disabled={busy}
-              onClick={() => { void run(() => clearVenueTemplate(projectId)) }}
-            >
-              {t('venue.clear')}
-            </button>
-          )}
-          {error !== null && <p className={css.failure} role="alert">{error}</p>}
-        </div>
-      )}
-    </div>
+            )}
+            {error !== null && <p className={css.failure} role="alert">{error}</p>}
+          </Popover.Content>
+        </Popover.Portal>
+      </div>
+    </Popover.Root>
   )
 }

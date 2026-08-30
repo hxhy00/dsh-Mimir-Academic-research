@@ -103,14 +103,24 @@ polish round every few iterations.
       plain text past 200 KB
 - [x] UI polish round: dark mode + language switch + keyboard shortcuts. Both
       toggles ride the host services (`ctx.theme` / `ctx.locale`, durable via
-      Host settings — no panel-local localStorage): the header has sun/moon
-      and 中/EN buttons; the panel only re-tints its private `--mimir-tok-*`
-      syntax colors plus `error-secondary` (a stroke token in the dark base
-      palette, used here as a fill) under `body[data-ds-dark-theme]`.
-      Shortcuts (pure `shortcutFor` mapping, guarded while typing): `1–6`
-      switch views, `Esc` closes, `⌘/Ctrl+Enter` compiles; a hint line sits at
-      the rail bottom. (Opening the panel by shortcut was skipped — the host
-      sidebar owns that surface.)
+      Host settings — no panel-local localStorage): the settings view (the
+      ninth rail tab) holds the theme preference (system/light/dark/blue) plus
+      the locale, the sxng web-search config, and the image-API config; the
+      panel only re-tints its private `--mimir-tok-*` syntax colors plus
+      `error-secondary` (a stroke token in the dark base palette, used here as
+      a fill) under `body[data-ds-dark-theme]`. Shortcuts (pure `shortcutFor`
+      mapping, guarded while typing): `1–9` switch views, `Esc` closes,
+      `⌘/Ctrl+Enter` compiles; a hint line sits at the rail bottom. The panel
+      closes by clicking the dimmed margin outside the workbench (the header
+      close button was dropped). (Opening the panel by shortcut was skipped —
+      the host sidebar owns that surface.)
+- [x] Settings view rework: the theme picker becomes a dropdown (system /
+      light / dark / blue — the blue theme inherits the host dsh blue accent
+      via a registered third-party theme plus a `data-mimir-theme="blue"`
+      re-tint of the panel's own palette), the card chrome is dropped for flat
+      label + select rows, and the sxng / image-API configs render always-open
+      (the shared panels gained a `flat` prop; the papers/meetings views keep
+      the collapsible fold).
 - [x] Narrow-width layout adaptation: below 900px the paper view degrades to
       a one-pane editor/preview tab bar (`paperSoloPane` picks the visible
       pane; the existing fullscreen CSS hides the other pane, the outline

@@ -35,6 +35,7 @@ const TABS: ReadonlyArray<{ id: string; label: RegExp }> = [
   { id: 'paper', label: /^论文$|^Paper$/ },
   { id: 'papers', label: /^文献$|^Library$/ },
   { id: 'experiments', label: /^实验$|^Experiments$/ },
+  { id: 'settings', label: /^设置$|^Settings$/ },
 ]
 
 const FIGURE_UPLOADS = [

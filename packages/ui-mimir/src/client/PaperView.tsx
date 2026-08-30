@@ -18,6 +18,7 @@
  */
 
 import { Fragment, useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import * as Tabs from '@radix-ui/react-tabs'
 import type { BibEntry, OutlineNode, PaperSnapshotView, SectionMove, SectionOutlineTitles, SubsectionMove, VenueView } from 'dsh-mimir/types'
 import type {
   ResearchBibView, ResearchCompileView, ResearchFailureView, ResearchImportCounts,
@@ -690,21 +691,24 @@ export function PaperView({
   // The narrow-width editor/preview tab bar (CSS-hidden at full width); both
   // pane heads render it so the switch is reachable from whichever pane shows.
   const paneTabs = (
-    <div className={css.paperTabs} role="tablist" aria-label={t('pane.tabs')}>
-      {(['editor', 'preview'] as const).map(pane => (
-        <button
-          key={pane}
-          type="button"
-          role="tab"
-          aria-selected={paperTab === pane}
-          className={css.paperTab}
-          data-active={paperTab === pane || undefined}
-          onClick={() => { setPaperTab(pane) }}
-        >
-          {t(pane === 'editor' ? 'editor.title' : 'preview.title')}
-        </button>
-      ))}
-    </div>
+    <Tabs.Root
+      className={css.paperTabs}
+      value={paperTab}
+      onValueChange={(value) => { setPaperTab(value as PaperSoloPane) }}
+    >
+      <Tabs.List aria-label={t('pane.tabs')}>
+        {(['editor', 'preview'] as const).map(pane => (
+          <Tabs.Trigger
+            key={pane}
+            value={pane}
+            className={css.paperTab}
+            data-active={paperTab === pane || undefined}
+          >
+            {t(pane === 'editor' ? 'editor.title' : 'preview.title')}
+          </Tabs.Trigger>
+        ))}
+      </Tabs.List>
+    </Tabs.Root>
   )
 
   return (

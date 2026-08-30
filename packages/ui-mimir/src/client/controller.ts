@@ -53,9 +53,6 @@ import type {
   ResearchFiguresResult,
   ResearchImportBibResult,
   ResearchImportPaperResult,
-  ResearchImportProjectRequest,
-  ResearchImportProjectResult,
-  ResearchImportedProject,
   ResearchImportWikiMode,
   ResearchImportWikiResult,
   ResearchListBackupsResult,
@@ -123,7 +120,6 @@ import type {
  */
 export interface ResearchRemote {
   listProjects: () => Promise<RemoteResult<ResearchListProjectsResult>>
-  importProject: (request: ResearchImportProjectRequest) => Promise<RemoteResult<ResearchImportProjectResult>>
   getPaperOutline: (request: { projectId: string; dir?: string | undefined }) => Promise<RemoteResult<ResearchOutlineResult>>
   compile: (request: { projectId?: string; dir?: string | undefined }, signal?: AbortSignal) => Promise<RemoteResult<ResearchCompileResult>>
   getCompileStatus: (request: { projectId?: string }) => Promise<RemoteResult<ResearchCompileStatusResult>>
@@ -2006,30 +2002,6 @@ export class ResearchController implements HostObservable<ResearchView> {
       await this.loadPapers()
       this.notify('success', 'toast.paperImported')
       return null
-    } catch (error) {
-      return transportFailure(error)
-    }
-  }
-
-  /**
-   * Import one existing local LaTeX project into the workspace (the sidebar's
-   * "import existing project" dialog): the host copies the tree into
-   * `imported/<slug>/` and registers the project. On success the project list
-   * refreshes BEFORE the summary resolves, so the caller can select the new
-   * project against an up-to-date list.
-   * @param path - absolute or `~`-prefixed source directory.
-   * @param title - the optional explicit title.
-   * @returns the import summary on success, the settled failure otherwise.
-   */
-  async importProject(path: string, title?: string): Promise<ResearchImportedProject | ResearchFailureView> {
-    try {
-      const carried = await this.remote.importProject(title === undefined ? { path } : { path, title })
-      if (!carried.ok) return failureOf(carried.error.code, carried.error.message)
-      const result = carried.value
-      if (!result.ok) return businessFailure(result.error)
-      await this.loadProjects()
-      this.notify('success', 'toast.projectImported', result.value.title)
-      return result.value
     } catch (error) {
       return transportFailure(error)
     }

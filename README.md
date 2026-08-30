@@ -24,8 +24,8 @@ literature · experiments &amp; remote GPUs · figures · LaTeX writing → comp
 
 Mimir is a single npm package (`dsh-mimir`) that plugs into dsh and gives you:
 
-- **Eight-view web workbench** (sidebar toggle → overlay, dark/light, 中/EN):
-  **Overview** pipeline & stats · **Paper** Overleaf-style LaTeX studio (edit → compile → PDF preview, one-click AI fix) · **Library** arXiv + web search, AI relevance scoring, fullscreen PDF reader · **Experiments** metric charts, one-click paper figures · **Figures** upload/organize/insert into the paper · **Meetings** one-click group-meeting PPT (real paper figures + optional AI illustrations) · **Servers** GPU fleet probes + remote jobs · **Ledger** growth-record timeline + one-click progress report
+- **Nine-view web workbench** (sidebar toggle → overlay, dark/light, 中/EN):
+  **Overview** pipeline & stats · **Paper** Overleaf-style LaTeX studio (edit → compile → PDF preview, one-click AI fix) · **Library** arXiv + web search, AI relevance scoring, fullscreen PDF reader · **Experiments** metric charts, one-click paper figures · **Figures** upload/organize/insert into the paper · **Meetings** one-click group-meeting PPT (real paper figures + optional AI illustrations) · **Servers** GPU fleet probes + remote jobs · **Ledger** growth-record timeline + one-click progress report · **Settings** theme (system/light/dark/blue/pink) + locale + web-search & image-API configuration
 - **Agent tools & slash commands**: `/research-idea` `/research-plan` `/research-review` `/paper-write` `/paper-compile`, plus `arxiv_search`, `web_search`, `wiki_note`, `figure_save`, `latex_compile`, `meeting_deck`
 - **Nine bundled research skills** (literature review, novelty check, experiment planning, citation audit, rebuttal…) that teach the agent the workflow — no setup needed
 
@@ -33,9 +33,9 @@ Mimir is a single npm package (`dsh-mimir`) that plugs into dsh and gives you:
 | --- | --- | --- | --- |
 | ![Overview](docs/screenshots/tab-overview.png) | ![Paper](docs/screenshots/tab-paper.png) | ![Library](docs/screenshots/tab-papers.png) | ![Experiments](docs/screenshots/tab-experiments.png) |
 
-| Figures | Meetings | Servers | Ledger |
-| --- | --- | --- | --- |
-| ![Figures](docs/screenshots/tab-figures.png) | ![Meetings](docs/screenshots/tab-meetings.png) | ![Servers](docs/screenshots/tab-servers.png) | ![Ledger](docs/screenshots/tab-ledger.png) |
+| Figures | Meetings | Servers | Ledger | Settings |
+| --- | --- | --- | --- | --- |
+| ![Figures](docs/screenshots/tab-figures.png) | ![Meetings](docs/screenshots/tab-meetings.png) | ![Servers](docs/screenshots/tab-servers.png) | ![Ledger](docs/screenshots/tab-ledger.png) | ![Settings](docs/screenshots/tab-settings.png) |
 
 ▶ [Full MP4 demo](https://raw.githubusercontent.com/1692775560/dsh-Mimir-Academic-research/main/docs/media/mimir-demo.mp4) (22 MB)
 

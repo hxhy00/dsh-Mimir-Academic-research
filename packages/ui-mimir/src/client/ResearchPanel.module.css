@@ -15,16 +15,17 @@
   z-index: -1;
   background: rgb(24 20 13 / 44%);
   backdrop-filter: blur(6px) saturate(0.85);
-  pointer-events: none;
+  /* Clicking the dimmed margin outside the workbench closes the panel. */
+  cursor: default;
 }
 
 .workbench {
   position: fixed;
-  inset: 2.5vh 2vw;
+  inset: 6vh 6vw;
   z-index: 1100;
   box-sizing: border-box;
-  width: 96vw;
-  height: 95vh;
+  width: 88vw;
+  height: 88vh;
   display: flex;
   border: 1px solid rgb(255 255 255 / 55%);
   border-radius: 20px;
@@ -168,62 +169,6 @@
   letter-spacing: 0.01em;
 }
 
-.close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
-  border-radius: 9px;
-  background: var(--dsw-specific-menu, #fff);
-  color: var(--dsw-alias-label-tertiary, #5b6474);
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.close:hover {
-  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
-  color: var(--dsw-alias-label-secondary, #3c4557);
-}
-
-/* Header switches: theme (sun/moon glyph) and language (中/EN). */
-.headActions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.iconButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
-  border-radius: 8px;
-  background: var(--dsw-specific-menu, #fff);
-  color: var(--dsw-alias-label-tertiary, #5b6474);
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.iconButton svg {
-  width: 14px;
-  height: 14px;
-}
-
-.iconButton:hover {
-  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
-  color: var(--dsw-alias-label-secondary, #3c4557);
-}
-
 .nav {
   display: flex;
   flex-direction: column;
@@ -304,8 +249,6 @@
    Text inputs/textarea keep their border+shadow :focus treatment (below);
    everything else gets the outline. */
 .navItem:focus-visible,
-.iconButton:focus-visible,
-.close:focus-visible,
 .projectRow:focus-visible,
 .btn:focus-visible,
 .btnPrimary:focus-visible,
@@ -323,6 +266,7 @@
 .figureLightbox:focus-visible,
 .railToggle:focus-visible,
 .paperTab:focus-visible,
+.iconButton:focus-visible,
 .toastClose:focus-visible,
 .serverSelect:focus-visible,
 .paperCardTitle a:focus-visible,
@@ -355,40 +299,17 @@
   background: var(--mimir-accent);
 }
 
-/* Unified view header: title + subtitle on the left, actions on the right. */
+/* Unified view header: a right-aligned action row. The big view title is
+   omitted (the left rail names the active view); only the view's action
+   buttons render, pushed to the top-right. */
 .viewHead {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   padding: 2px 2px 8px;
   border-bottom: 1px solid var(--dsw-alias-border-l1, rgb(15 23 42 / 6%));
-  justify-content: space-between;
   gap: 16px;
   width: 100%;
-}
-
-.viewHeadText {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-
-.viewTitle {
-  margin: 0;
-  color: var(--dsw-alias-label-primary, #17233d);
-  font-family: var(--mimir-serif);
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.viewSubtitle {
-  margin: 0;
-  /* label-tertiary is too faint against the content well's tinted gradient;
-     secondary keeps the hierarchy while staying readable. */
-  color: var(--dsw-alias-label-secondary, #3c4557);
-  font-size: 12px;
-  line-height: 1.5;
 }
 
 .viewActions {
@@ -621,6 +542,11 @@
     radial-gradient(560px 280px at 96% -6%, rgb(154 123 63 / 6%), transparent 70%),
     linear-gradient(180deg, #f6f0e4, #f1eadb);
 }
+/* Paper view needs edge-to-edge space for the editor/preview panes; strip the
+   side padding (keep a tiny vertical gap so the pane tops don't clip). */
+.content[data-view='paper'] {
+  padding: 2px 16px;
+}
 
 /* Shared empty state: a centered dashed card with a glyph and copy. */
 .emptyState {
@@ -650,7 +576,7 @@
   flex-direction: column;
   gap: 16px;
   width: 100%;
-  max-width: 1180px;
+  max-width: var(--mimir-content-width, 1360px);
   margin: 0 auto;
 }
 
@@ -839,7 +765,7 @@
   display: flex;
   flex: 1;
   min-height: 0;
-  gap: 12px;
+  gap: 8px;
 }
 
 /* Slim label naming the project whose paper is being edited. */
@@ -1375,14 +1301,14 @@ li.dropIndicator {
   flex: 2;
 }
 
-/* Drag handles between the three panes: a 12px hit area centered on the 12px
+/* Drag handles between the three panes: an 8px hit area centered on the 8px
    gap (negative margins make it layout-neutral), a 2px grip line that lights
    up on hover/drag. touch-action: none keeps pointer capture smooth. */
 .splitHandle {
   position: relative;
   z-index: 2;
-  flex: 0 0 12px;
-  margin: 0 -12px;
+  flex: 0 0 8px;
+  margin: 0 -8px;
   border-radius: 4px;
   cursor: col-resize;
   touch-action: none;
@@ -1679,6 +1605,41 @@ li.dropIndicator {
   color: var(--dsw-alias-state-error-primary, #d93026);
 }
 
+/* The pane-fullscreen icon button (editor/preview heads): a square SVG-only
+   control that lights up on hover, mirroring the other quiet icon buttons. */
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary, #5b6474);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.iconButton svg {
+  width: 16px;
+  height: 16px;
+}
+
+.iconButton:hover {
+  border-color: var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  background: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
+  color: var(--dsw-alias-label-primary, #17233d);
+}
+
+.iconButton[aria-pressed='true'] {
+  border-color: transparent;
+  background: var(--dsw-alias-state-business-tertiary, rgb(65 118 230 / 15%));
+  color: var(--dsw-alias-state-business-primary, #4176e6);
+}
+
 .issueList {
   margin: 0;
   padding: 0;
@@ -1854,7 +1815,7 @@ li.dropIndicator {
   flex-direction: column;
   gap: 16px;
   width: 100%;
-  max-width: 1200px;
+  max-width: var(--mimir-content-width, 1360px);
   margin: 0 auto;
 }
 
@@ -2193,7 +2154,7 @@ li.dropIndicator {
   flex-direction: column;
   gap: 14px;
   width: 100%;
-  max-width: 1080px;
+  max-width: var(--mimir-content-width, 1360px);
   margin: 0 auto;
 }
 
@@ -2426,7 +2387,7 @@ li.dropIndicator {
   flex-direction: column;
   gap: 16px;
   width: 100%;
-  max-width: 1360px;
+  max-width: var(--mimir-content-width, 1360px);
   margin: 0 auto;
 }
 
@@ -2612,7 +2573,7 @@ li.dropIndicator {
   flex-direction: column;
   gap: 16px;
   width: 100%;
-  max-width: 1200px;
+  max-width: var(--mimir-content-width, 1360px);
   margin: 0 auto;
 }
 
@@ -2880,6 +2841,77 @@ li.dropIndicator {
   color: var(--dsw-alias-label-tertiary, #5b6474);
   font-size: 12px;
   font-weight: 500;
+}
+
+/* Shared body container for the views that render a bare section (meetings,
+   settings): constrains the content width to the unified side-padding value
+   like the other views. */
+.viewBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: var(--mimir-content-width, 1360px);
+  margin: 0 auto;
+}
+
+/* The settings view: flat label + select rows (no cards), then the shared
+   config panels rendered always-open. */
+.settingsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settingsSection .sectionTitle {
+  margin: 0;
+}
+
+.settingsSection .hint {
+  margin: 0;
+}
+
+.settingsRows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.settingsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.settingsSelect {
+  box-sizing: border-box;
+  width: 200px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 9px;
+  background: var(--dsw-specific-menu, #fff);
+  color: var(--dsw-alias-label-primary, #17233d);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.settingsSelect:focus {
+  border-color: var(--dsw-alias-state-business-primary, #4176e6);
+  box-shadow: 0 0 0 3px var(--dsw-alias-state-business-tertiary, rgb(65 118 230 / 15%));
+}
+
+/* The flat (always-open) config panels in the settings view: no card chrome,
+   just the form rows separated by a hairline. */
+.configPanelFlat {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 0;
+  border-top: 1px solid var(--mimir-hairline, rgba(23, 35, 61, 0.12));
 }
 
 .input {
@@ -3163,6 +3195,192 @@ li.dropIndicator {
   transform: translateY(-1px);
 }
 
+/* Blue palette: the "blue" theme preference inherits the host's dsh blue
+   accent (deepseek-500) and bluish-neutral ground. The host presenter applies
+   the registered theme's alias tokens on `body`; the panel re-tints its own
+   `--mimir-*` tokens here via `data-mimir-hue="blue"` (set on the workbench
+   root when the preference is 'blue' or 'blue-dark'). Only the tokens that
+   differ from the base paper palette are overridden; the rest inherit from
+   `.workbench`. Dark-mode overrides live under the `body[data-ds-dark-theme]`
+   selector further below. */
+.workbench[data-mimir-hue='blue'] {
+  border-color: rgb(65 118 230 / 22%);
+  background: linear-gradient(180deg, #f4f7fb, #e9eef6);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 80%),
+    0 0 1px rgb(20 30 50 / 20%),
+    0 16px 40px rgb(20 30 50 / 18%),
+    0 40px 100px rgb(20 30 50 / 24%);
+  color-scheme: light;
+  /* ── Paper & ink (blue) ───────────────────────────────────────────────── */
+  --mimir-paper: #e9eef6;
+  --mimir-paper-deep: #dfe6f1;
+  --mimir-sheet: #fbfcfe;
+  --mimir-ink: #1b2433;
+  --mimir-line: rgb(27 36 51 / 10%);
+  --mimir-line-soft: rgb(27 36 51 / 6%);
+  --mimir-accent: #4176e6;
+  --mimir-accent-strong: #2f5fd0;
+  --mimir-accent-soft: rgb(65 118 230 / 12%);
+  --mimir-success: #2e8b57;
+  --mimir-success-soft: rgb(46 139 87 / 12%);
+  --mimir-error: #c0392b;
+  --mimir-error-soft: rgb(192 57 43 / 12%);
+  --mimir-warn: #b7791f;
+  --mimir-warn-soft: rgb(183 121 31 / 14%);
+  --mimir-glass: rgb(251 252 254 / 78%);
+  --mimir-edge: inset 0 1px 0 rgb(255 255 255 / 80%);
+  --mimir-card-shadow: 0 1px 2px rgb(27 36 51 / 5%), 0 10px 28px rgb(27 36 51 / 8%);
+  /* ── Host-alias re-tints (blue) ───────────────────────────────────────── */
+  --dsw-specific-menu: #fbfcfe;
+  --dsw-alias-markdown-code-block: #eef2f8;
+  --dsw-alias-label-primary: #1b2433;
+  --dsw-alias-label-secondary: #4a5568;
+  --dsw-alias-label-tertiary: #718096;
+  --dsw-alias-label-quaternary: #a0aec0;
+  --dsw-alias-label-primary-foreground: #f4f7fb;
+  --dsw-alias-border-l1: rgb(27 36 51 / 6%);
+  --dsw-alias-border-l2: rgb(27 36 51 / 10%);
+  --dsw-alias-border-l3: rgb(27 36 51 / 14%);
+  --dsw-alias-border-secondary: rgb(27 36 51 / 14%);
+  --dsw-alias-interactive-bg-hover: rgb(27 36 51 / 5%);
+  --dsw-alias-button-primary-fill: #4176e6;
+  --dsw-alias-button-primary-hover: #2f5fd0;
+  --dsw-alias-state-business-primary: #4176e6;
+  --dsw-alias-state-business-tertiary: rgb(65 118 230 / 12%);
+  --dsw-alias-state-success-primary: #2e8b57;
+  --dsw-alias-state-success-tertiary: rgb(46 139 87 / 12%);
+  --dsw-alias-state-error-primary: #c0392b;
+  --dsw-alias-state-error-secondary: rgb(192 57 43 / 12%);
+  --dsw-alias-state-error-tertiary: rgb(192 57 43 / 12%);
+  --dsw-alias-state-warn-label: #b7791f;
+  --dsw-alias-state-warn-tertiary: rgb(183 121 31 / 14%);
+  --dsw-alias-business-primary: #4176e6;
+  --dsw-alias-business-quaternary: rgb(65 118 230 / 10%);
+}
+
+/* Blue content well: the right-hand content area keeps its own hard-coded
+   paper gradient (the muted-zine washes), so re-tint it to the bluish ground
+   here — otherwise it would stay the warm ivory of the default paper theme. */
+.workbench[data-mimir-hue='blue'] .content {
+  background:
+    radial-gradient(620px 300px at 8% -4%, rgb(65 118 230 / 7%), transparent 70%),
+    radial-gradient(560px 280px at 96% -6%, rgb(65 118 230 / 5%), transparent 70%),
+    linear-gradient(180deg, #f4f7fb, #e9eef6);
+}
+
+/* Pink palette: the "pink" theme preference — a rosy light theme with a
+   magenta accent and a blush-tinted ground. Same structure as the blue
+   palette: it re-tints the private `--mimir-*` tokens and the host-alias
+   tokens, and the content well's hard-coded gradient. */
+.workbench[data-mimir-hue='pink'] {
+  border-color: rgb(217 79 138 / 22%);
+  background: linear-gradient(180deg, #fdf4f8, #f9e9f0);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 80%),
+    0 0 1px rgb(60 20 40 / 20%),
+    0 16px 40px rgb(60 20 40 / 18%),
+    0 40px 100px rgb(60 20 40 / 24%);
+  color-scheme: light;
+  /* ── Paper & ink (pink) ──────────────────────────────────────────────── */
+  --mimir-paper: #f9e9f0;
+  --mimir-paper-deep: #f3dce7;
+  --mimir-sheet: #fefbfc;
+  --mimir-ink: #3a2430;
+  --mimir-line: rgb(58 36 48 / 10%);
+  --mimir-line-soft: rgb(58 36 48 / 6%);
+  --mimir-accent: #d94f8a;
+  --mimir-accent-strong: #c1437b;
+  --mimir-accent-soft: rgb(217 79 138 / 12%);
+  --mimir-success: #2e8b57;
+  --mimir-success-soft: rgb(46 139 87 / 12%);
+  --mimir-error: #c0392b;
+  --mimir-error-soft: rgb(192 57 43 / 12%);
+  --mimir-warn: #b7791f;
+  --mimir-warn-soft: rgb(183 121 31 / 14%);
+  --mimir-glass: rgb(254 251 252 / 78%);
+  --mimir-edge: inset 0 1px 0 rgb(255 255 255 / 80%);
+  --mimir-card-shadow: 0 1px 2px rgb(58 36 48 / 5%), 0 10px 28px rgb(58 36 48 / 8%);
+  /* ── Host-alias re-tints (pink) ──────────────────────────────────────── */
+  --dsw-specific-menu: #fefbfc;
+  --dsw-alias-markdown-code-block: #fbeef5;
+  --dsw-alias-label-primary: #3a2430;
+  --dsw-alias-label-secondary: #6b4a5a;
+  --dsw-alias-label-tertiary: #8a6a78;
+  --dsw-alias-label-quaternary: #a98a96;
+  --dsw-alias-label-primary-foreground: #fdf4f8;
+  --dsw-alias-border-l1: rgb(58 36 48 / 6%);
+  --dsw-alias-border-l2: rgb(58 36 48 / 10%);
+  --dsw-alias-border-l3: rgb(58 36 48 / 14%);
+  --dsw-alias-border-secondary: rgb(58 36 48 / 14%);
+  --dsw-alias-interactive-bg-hover: rgb(58 36 48 / 5%);
+  --dsw-alias-button-primary-fill: #d94f8a;
+  --dsw-alias-button-primary-hover: #c1437b;
+  --dsw-alias-state-business-primary: #d94f8a;
+  --dsw-alias-state-business-tertiary: rgb(217 79 138 / 12%);
+  --dsw-alias-state-success-primary: #2e8b57;
+  --dsw-alias-state-success-tertiary: rgb(46 139 87 / 12%);
+  --dsw-alias-state-error-primary: #c0392b;
+  --dsw-alias-state-error-secondary: rgb(192 57 43 / 12%);
+  --dsw-alias-state-error-tertiary: rgb(192 57 43 / 12%);
+  --dsw-alias-state-warn-label: #b7791f;
+  --dsw-alias-state-warn-tertiary: rgb(183 121 31 / 14%);
+  --dsw-alias-business-primary: #d94f8a;
+  --dsw-alias-business-quaternary: rgb(217 79 138 / 10%);
+}
+
+.workbench[data-mimir-hue='pink'] .content {
+  background:
+    radial-gradient(620px 300px at 8% -4%, rgb(217 79 138 / 7%), transparent 70%),
+    radial-gradient(560px 280px at 96% -6%, rgb(217 79 138 / 5%), transparent 70%),
+    linear-gradient(180deg, #fdf4f8, #f9e9f0);
+}
+
+/* Blue-dark palette: the dark twin of the blue light theme — warm-charcoal
+   ground with a brighter blue accent. Inherits from the base dark palette
+   via `body[data-ds-dark-theme]` and overrides accent + focus tokens. */
+::global(body[data-ds-dark-theme]) .workbench[data-mimir-hue='blue'] {
+  --mimir-accent: #6b9dff;
+  --mimir-accent-strong: #8fb3ff;
+  --mimir-accent-soft: rgb(107 157 255 / 18%);
+  --dsw-alias-focus-border: #6b9dff;
+  --dsw-alias-button-primary-fill: #6b9dff;
+  --dsw-alias-button-primary-hover: #5a8ff2;
+  --dsw-alias-state-business-primary: #6b9dff;
+  --dsw-alias-state-business-tertiary: rgb(107 157 255 / 18%);
+  --dsw-alias-business-primary: #6b9dff;
+  --dsw-alias-business-quaternary: rgb(107 157 255 / 14%);
+}
+
+::global(body[data-ds-dark-theme]) .workbench[data-mimir-hue='blue'] .content {
+  background:
+    radial-gradient(620px 300px at 8% -4%, rgb(107 157 255 / 8%), transparent 70%),
+    radial-gradient(560px 280px at 96% -6%, rgb(107 157 255 / 5%), transparent 70%),
+    linear-gradient(180deg, #1d1a13, #17140d);
+}
+
+/* Pink-dark palette: the dark twin of the pink light theme — warm-charcoal
+   ground with a rosy magenta accent. */
+::global(body[data-ds-dark-theme]) .workbench[data-mimir-hue='pink'] {
+  --mimir-accent: #e879a5;
+  --mimir-accent-strong: #f094b8;
+  --mimir-accent-soft: rgb(232 121 165 / 18%);
+  --dsw-alias-focus-border: #e879a5;
+  --dsw-alias-button-primary-fill: #e879a5;
+  --dsw-alias-button-primary-hover: #da6a98;
+  --dsw-alias-state-business-primary: #e879a5;
+  --dsw-alias-state-business-tertiary: rgb(232 121 165 / 18%);
+  --dsw-alias-business-primary: #e879a5;
+  --dsw-alias-business-quaternary: rgb(232 121 165 / 14%);
+}
+
+::global(body[data-ds-dark-theme]) .workbench[data-mimir-hue='pink'] .content {
+  background:
+    radial-gradient(620px 300px at 8% -4%, rgb(232 121 165 / 8%), transparent 70%),
+    radial-gradient(560px 280px at 96% -6%, rgb(232 121 165 / 5%), transparent 70%),
+    linear-gradient(180deg, #1d1a13, #17140d);
+}
+
 /* Dark palette: the host theme presenter flips `body[data-ds-dark-theme]`;
    the paper language inverts to warm charcoal with a PALE slate accent and a
    paper-white primary button (the dark twin of the light ink stamp). Every
@@ -3387,6 +3605,10 @@ li.dropIndicator {
 
   .content {
     padding: 12px 14px;
+  }
+
+  .content[data-view='paper'] {
+    padding: 2px 16px;
   }
 }
 
@@ -3702,7 +3924,7 @@ li.dropIndicator {
   flex-direction: column;
   gap: 14px;
   width: 100%;
-  max-width: 1080px;
+  max-width: var(--mimir-content-width, 1360px);
   margin: 0 auto;
 }
 
@@ -3997,8 +4219,6 @@ li.dropIndicator {
    Text inputs/textarea keep their border+shadow :focus treatment (below);
    everything else gets the outline. */
 .navItem:focus-visible,
-.iconButton:focus-visible,
-.close:focus-visible,
 .projectRow:focus-visible,
 .btn:focus-visible,
 .btnPrimary:focus-visible,
@@ -4016,6 +4236,7 @@ li.dropIndicator {
 .figureLightbox:focus-visible,
 .railToggle:focus-visible,
 .paperTab:focus-visible,
+.iconButton:focus-visible,
 .sideProjectsToggle:focus-visible,
 .subscriptionNewToggle:focus-visible,
 .toastClose:focus-visible,
@@ -4456,6 +4677,12 @@ li.dropIndicator {
 .paperPdfOverlay {   position: fixed;
   inset: 0;
   z-index: 1100;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.paperPdfOverlayContent {   position: fixed;
+  inset: 0;
+  z-index: 1101;
   display: flex;
   flex-direction: column;
   background: var(--dsw-alias-bg-body, #f5f6f7);
@@ -4751,19 +4978,23 @@ li.dropIndicator {
   outline-offset: 1px;
 }
 
-/* Import-existing-project dialog: portaled to document.body, so the z-index
-   is relative to the root stacking context — it must clear the workbench
-   (1100) like the figure lightbox does. */
-.importOverlay {   position: fixed;
+/* Shared modal shell (ModalDialog / ConfirmDialog): portaled to
+   document.body, so the z-index is relative to the root stacking context —
+   it must clear the workbench (1100) and the figure lightbox (1200). The
+   overlay and the dialog are SIBLINGS inside the Radix portal, so the dialog
+   centres itself with its own transform rather than relying on the overlay's
+   flex layout. */
+.modalOverlay {   position: fixed;
   inset: 0;
-  z-index: 1200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  z-index: 1300;
   background: rgb(0 0 0 / 35%);
 }
 
-.importDialog {   width: min(480px, 90vw);
+.modalDialog {   position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 1301;
+  width: min(480px, 90vw);
   max-height: 80vh;
   overflow-y: auto;
   box-sizing: border-box;
@@ -4772,50 +5003,22 @@ li.dropIndicator {
   border-radius: 14px;
   background: var(--dsw-specific-menu, #fff);
   box-shadow: 0 16px 48px rgb(0 0 0 / 24%);
+  transform: translate(-50%, -50%);
 }
 
-.importDialogTitle {   margin: 0 0 10px;
+.modalDialogTitle {   margin: 0 0 10px;
   color: var(--dsw-alias-label-primary, #1f2329);
   font-size: 15px;
   font-weight: 600;
 }
 
-.importForm {   display: flex;
+.modalForm {   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.importField {   display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.importLabel {   color: var(--dsw-alias-label-secondary, #646a73);
-  font-size: 12px;
-}
-
-.importActions {   display: flex;
+.modalActions {   display: flex;
   gap: 8px;
   justify-content: flex-end;
   margin-top: 4px;
-}
-
-.importSummary {   display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.importSuccessLine {   margin: 0;
-  color: var(--dsw-alias-label-primary, #1f2329);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.importWarnings {   margin: 0;
-  padding-left: 18px;
-  color: var(--dsw-alias-label-secondary, #646a73);
-  font-size: 12px;
-}
-
-.importWarnings li {   margin: 2px 0;
 }

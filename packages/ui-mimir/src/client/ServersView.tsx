@@ -12,36 +12,12 @@ import type { ExperimentRecord, ServerInput, ServerRecord } from 'dsh-mimir/type
 import type {
   ResearchFailureView, ResearchJobsView, ResearchProjectSlice, ResearchServersView, ServerCheckState,
 } from './controller.ts'
+import { ConfirmDialog } from './ConfirmDialog.tsx'
 import { collectServerTags, failureCopy, filterServers, PROBE_FAILURE_KEYS, PROBE_STAGE_KEYS, probeStageOf, relativeTime, type ResearchT } from './view-common.ts'
 import { EmptyState } from './EmptyState.tsx'
-import { ViewHead } from './ViewHead.tsx'
+import { ServerForm } from './ServerForm.tsx'
 import { JobsSection } from './JobsSection.tsx'
 import css from './ResearchPanel.module.css'
-
-/** Form field state: the port stays text until submit. */
-interface ServerFormState {
-  readonly name: string
-  readonly host: string
-  readonly port: string
-  readonly username: string
-  readonly note: string
-  readonly tags: readonly string[]
-}
-
-/** The blank form the add button opens. */
-const EMPTY_FORM: ServerFormState = { name: '', host: '', port: '22', username: '', note: '', tags: [] }
-
-/** Form state of one existing record (the edit path's refill). */
-function formOf(record: ServerRecord): ServerFormState {
-  return {
-    name: record.name,
-    host: record.host,
-    port: String(record.port),
-    username: record.username,
-    note: record.note,
-    tags: [...record.tags],
-  }
-}
 
 /** The status-dot data-state of one server's probe lifecycle. */
 function dotStateOf(check: ServerCheckState | undefined): string {
@@ -99,16 +75,14 @@ export function ServersView({
   readonly deleteJob: (id: string) => Promise<ResearchFailureView | null>
   readonly t: ResearchT
 }) {
-  /** 'new' for the add form, a server id for the edit form, null when closed. */
-  const [editing, setEditing] = useState<'new' | string | null>(null)
-  const [form, setForm] = useState<ServerFormState>(EMPTY_FORM)
-  const [formError, setFormError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
+  /** 'new' for the add form, a record for the edit form, null when closed. */
+  const [editing, setEditing] = useState<ServerRecord | 'new' | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [activeTag, setActiveTag] = useState<string | null>(null)
-  const [tagInput, setTagInput] = useState('')
   /** The card whose probe-failure line is expanded; null collapses them all. */
   const [openMessageId, setOpenMessageId] = useState<string | null>(null)
+  // The server id awaiting the delete confirmation; null when none.
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
 
   // The view mounts only while its tab is active: load the list once, then
   // probe every listed server exactly once (a settled or in-flight probe
@@ -121,178 +95,30 @@ export function ServersView({
     }
   }, [servers, checks, checkServer])
 
-  const openAdd = (): void => {
-    setEditing('new')
-    setForm(EMPTY_FORM)
-    setFormError(null)
-    setTagInput('')
-  }
-  const openEdit = (record: ServerRecord): void => {
-    setEditing(record.id)
-    setForm(formOf(record))
-    setFormError(null)
-    setTagInput('')
-  }
-  const patchForm = (patch: Partial<ServerFormState>): void => {
-    setForm(current => ({ ...current, ...patch }))
-  }
-  const addTag = (): void => {
-    const tag = tagInput.trim()
-    if (tag === '') return
-    patchForm({ tags: form.tags.includes(tag) ? form.tags : [...form.tags, tag] })
-    setTagInput('')
-  }
-  const submit = (): void => {
-    if (saving) return
-    setSaving(true)
-    setFormError(null)
-    // A tag typed but not yet committed with Enter rides along.
-    const pending = tagInput.trim()
-    const tags = pending === '' || form.tags.includes(pending) ? form.tags : [...form.tags, pending]
-    const server: ServerInput = {
-      id: editing === 'new' || editing === null ? undefined : editing,
-      name: form.name,
-      host: form.host,
-      port: Number(form.port),
-      username: form.username,
-      note: form.note,
-      tags: [...tags],
-    }
-    void saveServer(server)
-      .then((failure) => {
-        if (failure !== null) {
-          setFormError(failure.message)
-          return
-        }
-        setEditing(null)
-      })
-      .finally(() => { setSaving(false) })
-  }
-  const removeServer = (record: ServerRecord): void => {
-    if (!window.confirm(t('servers.confirmDelete'))) return
-    void deleteServer(record.id).then((failure) => {
+  const openAdd = (): void => { setEditing('new') }
+  const openEdit = (record: ServerRecord): void => { setEditing(record) }
+  const removeServer = (id: string): void => {
+    void deleteServer(id).then((failure) => {
       setActionError(failure === null ? null : `${t('servers.deleteFailed')}：${failure.message}`)
     })
   }
 
-  const editingRecord = editing === null || editing === 'new'
-    ? undefined
-    : servers.list.find(server => server.id === editing)
   const allTags = collectServerTags(servers.list)
   const visible = filterServers(servers.list, activeTag)
 
   return (
     <div className={css.servers}>
-      <ViewHead title={t('tab.servers')} subtitle={t('view.servers.subtitle')}>
-        <button type="button" className={css.btnPrimary} onClick={openAdd}>
-          {t('servers.add')}
-        </button>
-        <button
-          type="button"
-          className={css.btn}
-          disabled={servers.list.length === 0}
-          onClick={checkAllServers}
-        >
-          {t('servers.checkAll')}
-        </button>
-      </ViewHead>
       {actionError !== null && (
         <p className={css.failure} role="alert">{actionError}</p>
       )}
-      {editing !== null && (editing === 'new' || editingRecord !== undefined) && (
-        <div className={css.serverForm}>
-          <h3 className={css.sectionTitle}>
-            {editing === 'new' ? t('servers.form.add') : t('servers.form.edit')}
-          </h3>
-          <div className={css.serverFormGrid}>
-            <label className={css.field}>
-              <span className={css.fieldLabel}>{t('servers.form.name')}</span>
-              <input
-                className={css.input}
-                value={form.name}
-                placeholder={t('servers.form.namePlaceholder')}
-                onChange={event => { patchForm({ name: event.target.value }) }}
-              />
-            </label>
-            <label className={css.field}>
-              <span className={css.fieldLabel}>{t('servers.form.host')}</span>
-              <input
-                className={css.input}
-                value={form.host}
-                placeholder={t('servers.form.hostPlaceholder')}
-                onChange={event => { patchForm({ host: event.target.value }) }}
-              />
-            </label>
-            <label className={css.field}>
-              <span className={css.fieldLabel}>{t('servers.form.port')}</span>
-              <input
-                className={css.input}
-                value={form.port}
-                inputMode="numeric"
-                onChange={event => { patchForm({ port: event.target.value }) }}
-              />
-            </label>
-            <label className={css.field}>
-              <span className={css.fieldLabel}>{t('servers.form.username')}</span>
-              <input
-                className={css.input}
-                value={form.username}
-                placeholder={t('servers.form.usernamePlaceholder')}
-                onChange={event => { patchForm({ username: event.target.value }) }}
-              />
-            </label>
-            <label className={css.field} data-wide>
-              <span className={css.fieldLabel}>{t('servers.form.note')}</span>
-              <input
-                className={css.input}
-                value={form.note}
-                placeholder={t('servers.form.notePlaceholder')}
-                onChange={event => { patchForm({ note: event.target.value }) }}
-              />
-            </label>
-            <div className={css.field} data-wide>
-              <span className={css.fieldLabel}>{t('servers.form.tags')}</span>
-              <div className={css.tagEditor}>
-                {form.tags.map(tag => (
-                  <span key={tag} className={css.tagPill} data-static>
-                    {tag}
-                    <button
-                      type="button"
-                      className={css.tagRemove}
-                      aria-label={`${t('servers.removeTag')} ${tag}`}
-                      onClick={() => { patchForm({ tags: form.tags.filter(item => item !== tag) }) }}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-                <input
-                  className={css.input}
-                  value={tagInput}
-                  placeholder={t('servers.form.tagInputPlaceholder')}
-                  onChange={event => { setTagInput(event.target.value) }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ',') {
-                      event.preventDefault()
-                      addTag()
-                    }
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-          {formError !== null && (
-            <p className={css.failure} role="alert">{formError}</p>
-          )}
-          <div className={css.serverFormActions}>
-            <button type="button" className={css.btnPrimary} disabled={saving} onClick={submit}>
-              {t('servers.form.save')}
-            </button>
-            <button type="button" className={css.btn} onClick={() => { setEditing(null) }}>
-              {t('servers.form.cancel')}
-            </button>
-          </div>
-        </div>
+      {editing !== null && (
+        <ServerForm
+          key={editing === 'new' ? 'new' : editing.id}
+          editing={editing === 'new' ? null : editing}
+          saveServer={saveServer}
+          onClose={() => { setEditing(null) }}
+          t={t}
+        />
       )}
       {servers.status === 'ready' && allTags.length > 0 && (
         <div className={css.papersFilters}>
@@ -439,7 +265,7 @@ export function ServersView({
                   <button type="button" className={css.btn} onClick={() => { openEdit(record) }}>
                     {t('servers.edit')}
                   </button>
-                  <button type="button" className={css.btn} data-danger onClick={() => { removeServer(record) }}>
+                  <button type="button" className={css.btn} data-danger onClick={() => { setPendingDelete(record.id) }}>
                     {t('servers.delete')}
                   </button>
                 </div>
@@ -456,6 +282,30 @@ export function ServersView({
         refreshJobs={refreshJobs}
         submitJob={submitJob}
         deleteJob={deleteJob}
+        t={t}
+      />
+      <div className={css.viewActions}>
+        <button type="button" className={css.btnPrimary} onClick={openAdd}>
+          {t('servers.add')}
+        </button>
+        <button
+          type="button"
+          className={css.btn}
+          disabled={servers.list.length === 0}
+          onClick={checkAllServers}
+        >
+          {t('servers.checkAll')}
+        </button>
+      </div>
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={t('servers.confirmDelete')}
+        confirmLabel={t('servers.delete')}
+        onConfirm={() => {
+          if (pendingDelete !== null) removeServer(pendingDelete)
+          setPendingDelete(null)
+        }}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null) }}
         t={t}
       />
     </div>

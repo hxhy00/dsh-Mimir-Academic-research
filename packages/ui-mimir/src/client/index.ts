@@ -24,7 +24,7 @@ import { ResearchController } from './controller.ts'
 import { ResearchPanel } from './ResearchPanel.tsx'
 import { ResearchToggle } from './ResearchToggle.tsx'
 import type { ResearchPanelInjected } from './slots.ts'
-import { nextColorScheme, nextLocale, type WorkbenchChrome } from './shortcuts.ts'
+import type { WorkbenchChrome } from './shortcuts.ts'
 import { createResearchPanelStore } from './store.ts'
 import { en, zh, type ResearchKey } from './locales.ts'
 
@@ -133,21 +133,83 @@ function panelApply(ctx: ClientContext): void {
   const panel = createResearchPanelStore()
   const controller = new ResearchController(ctx.remote.research)
 
+  // The hue themes ("blue", "pink", …): light and dark variants that inherit
+  // the host's accent and a tinted neutral ground. Each is registered as a
+  // third-party theme so the host presenter applies its alias tokens on
+  // `body`; the panel re-tints its own `--mimir-*` palette via
+  // `data-mimir-hue="<hue>"` (see ResearchPanel.module.css). Disposed with
+  // the fiber so the preference resets to `system` if the plugin is ever
+  // unloaded.
+  ctx.effect(() => ctx.theme.register({
+    id: 'blue',
+    colorScheme: 'light',
+    tokens: {
+      '--dsw-alias-state-business-primary': '#4176e6',
+      '--dsw-alias-state-business-tertiary': 'rgb(65 118 230 / 15%)',
+      '--dsw-alias-focus-border': '#4176e6',
+      '--dsw-alias-business-primary': '#4176e6',
+      '--dsw-alias-business-quaternary': 'rgb(65 118 230 / 14%)',
+      '--dsw-alias-button-primary-fill': '#4176e6',
+      '--dsw-alias-button-primary-hover': '#4868b2',
+    },
+  }), 'ui-mimir: blue theme')
+  ctx.effect(() => ctx.theme.register({
+    id: 'blue-dark',
+    colorScheme: 'dark',
+    tokens: {
+      '--dsw-alias-state-business-primary': '#6b9dff',
+      '--dsw-alias-state-business-tertiary': 'rgb(107 157 255 / 18%)',
+      '--dsw-alias-focus-border': '#6b9dff',
+      '--dsw-alias-business-primary': '#6b9dff',
+      '--dsw-alias-business-quaternary': 'rgb(107 157 255 / 14%)',
+      '--dsw-alias-button-primary-fill': '#6b9dff',
+      '--dsw-alias-button-primary-hover': '#5a8ff2',
+    },
+  }), 'ui-mimir: blue-dark theme')
+  ctx.effect(() => ctx.theme.register({
+    id: 'pink',
+    colorScheme: 'light',
+    tokens: {
+      '--dsw-alias-state-business-primary': '#d94f8a',
+      '--dsw-alias-state-business-tertiary': 'rgb(217 79 138 / 15%)',
+      '--dsw-alias-focus-border': '#d94f8a',
+      '--dsw-alias-business-primary': '#d94f8a',
+      '--dsw-alias-business-quaternary': 'rgb(217 79 138 / 14%)',
+      '--dsw-alias-button-primary-fill': '#d94f8a',
+      '--dsw-alias-button-primary-hover': '#c1437b',
+    },
+  }), 'ui-mimir: pink theme')
+  ctx.effect(() => ctx.theme.register({
+    id: 'pink-dark',
+    colorScheme: 'dark',
+    tokens: {
+      '--dsw-alias-state-business-primary': '#e879a5',
+      '--dsw-alias-state-business-tertiary': 'rgb(232 121 165 / 18%)',
+      '--dsw-alias-focus-border': '#e879a5',
+      '--dsw-alias-business-primary': '#e879a5',
+      '--dsw-alias-business-quaternary': 'rgb(232 121 165 / 14%)',
+      '--dsw-alias-button-primary-fill': '#e879a5',
+      '--dsw-alias-button-primary-hover': '#da6a98',
+    },
+  }), 'ui-mimir: pink-dark theme')
+
   // The header chrome snapshot adapts the host theme/locale services into one
   // HostObservable. Both services emit change events on this context's root;
   // the snapshot keeps reference identity while neither value moved, so the
   // selector hook never re-renders on an unrelated theme registry bump.
   let chromeSnapshot: WorkbenchChrome = {
     dark: ctx.theme.getTheme().active.colorScheme === 'dark',
+    preference: ctx.theme.getTheme().preference,
     locale: ctx.locale.getLocale().active,
   }
   const chromeListeners = new Set<() => void>()
   const onChromeChange = (): void => {
     const next: WorkbenchChrome = {
       dark: ctx.theme.getTheme().active.colorScheme === 'dark',
+      preference: ctx.theme.getTheme().preference,
       locale: ctx.locale.getLocale().active,
     }
-    if (next.dark === chromeSnapshot.dark && next.locale === chromeSnapshot.locale) return
+    if (next.dark === chromeSnapshot.dark && next.preference === chromeSnapshot.preference && next.locale === chromeSnapshot.locale) return
     chromeSnapshot = Object.freeze(next)
     for (const listener of [...chromeListeners]) listener()
   }
@@ -206,22 +268,14 @@ function panelApply(ctx: ClientContext): void {
     locale: NS,
     inject: (actions): ResearchPanelInjected => ({
       hooks: { research: controller, chrome },
-      toggleTheme: () => { ctx.theme.setTheme(nextColorScheme(chromeSnapshot.dark)) },
-      toggleLocale: () => { ctx.locale.setLocale(nextLocale(chromeSnapshot.locale)) },
+      setTheme: (preference) => { ctx.theme.setTheme(preference) },
+      setLocale: (locale) => { ctx.locale.setLocale(locale) },
       ensure: () => { controller.ensure() },
       // The row click is the single selection entry: it writes the shared
       // store and fetches the outline + compile status in one gesture.
       selectProject: (projectId) => {
         actions.select(projectId)
         controller.select(projectId)
-      },
-      // The project list's import dialog: a successful import lands selected.
-      importProject: async (path, title) => {
-        const outcome = await controller.importProject(path, title)
-        if ('code' in outcome) return outcome
-        actions.select(outcome.projectId)
-        controller.select(outcome.projectId)
-        return outcome
       },
       compile: (projectId) => { void controller.compile(projectId) },
       // The per-issue "fix with AI" button.

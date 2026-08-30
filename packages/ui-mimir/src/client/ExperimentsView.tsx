@@ -27,10 +27,10 @@ import {
   type MetricChartRow,
   type ResearchT,
 } from './view-common.ts'
+import { ConfirmDialog } from './ConfirmDialog.tsx'
 import { renderMarkdown } from './MarkdownView.tsx'
 import { EmptyState } from './EmptyState.tsx'
 import { ExperimentForm } from './ExperimentForm.tsx'
-import { ViewHead } from './ViewHead.tsx'
 import css from './ResearchPanel.module.css'
 
 /** Bar-chart geometry: bars span x 132–268 of the 340-wide viewBox. */
@@ -135,11 +135,12 @@ export function ExperimentsView({
   const [generatingKey, setGeneratingKey] = useState<string | null>(null)
   // The inline create/edit form; `editing` null means create.
   const [form, setForm] = useState<{ editing: ExperimentRecord | null } | null>(null)
+  // The experiment id awaiting the delete confirmation; null when none.
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
   // The relink dropdown needs the server list; load it once per view mount.
   useEffect(() => { ensureServers() }, [ensureServers])
-  const removeExperiment = (record: ExperimentRecord): void => {
-    if (!window.confirm(t('experiments.confirmDelete'))) return
-    void deleteExperiment(record.id).then((failure) => {
+  const removeExperiment = (id: string): void => {
+    void deleteExperiment(id).then((failure) => {
       setActionError(failure === null ? null : `${t('experiments.deleteFailed')}：${failure.message}`)
     })
   }
@@ -156,7 +157,6 @@ export function ExperimentsView({
     : []
   return (
     <div className={css.experiments}>
-      <ViewHead title={t('tab.experiments')} subtitle={t('view.experiments.subtitle')} />
       {projectId !== null && (
         <div className={css.dataActions}>
           <button
@@ -312,7 +312,7 @@ export function ExperimentsView({
                           type="button"
                           className={css.btn}
                           data-danger
-                          onClick={() => { removeExperiment(record) }}
+                          onClick={() => { setPendingDelete(record.id) }}
                         >
                           {t('experiments.delete')}
                         </button>
@@ -341,6 +341,17 @@ export function ExperimentsView({
           {renderMarkdown(artifact.content)}
         </div>
       )}
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={t('experiments.confirmDelete')}
+        confirmLabel={t('experiments.delete')}
+        onConfirm={() => {
+          if (pendingDelete !== null) removeExperiment(pendingDelete)
+          setPendingDelete(null)
+        }}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null) }}
+        t={t}
+      />
     </div>
   )
 }

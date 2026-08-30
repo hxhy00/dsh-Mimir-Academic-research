@@ -1,11 +1,12 @@
 /**
- * The research workbench: a wide fixed overlay with a left rail (the eight
+ * The research workbench: a wide fixed overlay with a left rail (the nine
  * view tabs plus the project picker at the bottom) and a content area that
  * renders the active view — the project overview card, the Overleaf-style
  * paper editor, the literature library, the experiment records with the
  * experiment log, the paper-figure grid, the group-meeting deck builder,
- * the compute-server board, and the ledger (the transparent growth record:
- * timeline + progress report). All
+ * the compute-server board, the ledger (the transparent growth record:
+ * timeline + progress report), and the settings (appearance, web-search and
+ * image-API configuration). All
  * data arrives through the four props shares — the shared store carries
  * open/selection/active-tab, the `useResearch` hook carries the remote view,
  * and the inject face carries the verbs. The component owns no subscription
@@ -13,7 +14,7 @@
  * @module dsh-client-ui-mimir/client/ResearchPanel
  */
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import type { ResearchTab } from './store.ts'
 import type { ResearchKey } from './locales.ts'
 import { arrowTab, trapFocusIndex } from './focus.ts'
@@ -27,8 +28,8 @@ import { FiguresView } from './FiguresView.tsx'
 import { MeetingsView } from './MeetingsView.tsx'
 import { ServersView } from './ServersView.tsx'
 import { LedgerView } from './LedgerView.tsx'
+import { SettingsView } from './SettingsView.tsx'
 import { ToastHost } from './ToastHost.tsx'
-import { ImportProjectDialog } from './ImportProjectDialog.tsx'
 import css from './ResearchPanel.module.css'
 
 /** Locale key of one tab label. */
@@ -41,6 +42,7 @@ const TAB_KEYS: Record<ResearchTab, ResearchKey> = {
   meetings: 'tab.meetings',
   servers: 'tab.servers',
   ledger: 'tab.ledger',
+  settings: 'tab.settings',
 }
 
 /** One 16×16 stroke icon per tab, painted in the nav item's currentColor. */
@@ -99,6 +101,12 @@ const TAB_ICONS: Record<ResearchTab, ReactNode> = {
       <path d="M5.5 5h5M5.5 8h5M5.5 11h3" />
     </svg>
   ),
+  settings: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="8" cy="8" r="2.2" />
+      <path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M12.4 3.6l-1.1 1.1M4.7 11.3l-1.1 1.1" />
+    </svg>
+  ),
 }
 
 /** The artifact shown by the experiments view's log section. */
@@ -106,6 +114,10 @@ const EXPERIMENT_LOG_ARTIFACT = 'EXPERIMENT_LOG.md'
 
 /** localStorage key the sidebar project-list fold persists under. */
 const PROJECTS_COLLAPSED_STORAGE_KEY = 'mimir.sideProjects.collapsed'
+/** localStorage key the content-width preference persists under. */
+const CONTENT_WIDTH_STORAGE_KEY = 'mimir.contentWidth'
+/** The default content width (px) — the figures view's original max-width. */
+const DEFAULT_CONTENT_WIDTH = 1360
 
 /** 10×10 disclosure chevron, rotated by the consumer's data attribute. */
 const CHEVRON_ICON = (
@@ -114,18 +126,7 @@ const CHEVRON_ICON = (
   </svg>
 )
 
-/** 14×14 header glyphs for the theme and language switches. */
-const MOON_ICON = (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M13.5 10A6 6 0 0 1 6 2.5a5 5 0 1 0 7.5 7.5z" />
-  </svg>
-)
-const SUN_ICON = (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-    <circle cx="8" cy="8" r="3" />
-    <path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M12.6 3.4l-1.1 1.1M4.5 11.5l-1.1 1.1" />
-  </svg>
-)
+
 
 /**
  * Whether one keydown target is a text-entry surface; such keydowns are never
@@ -148,7 +149,7 @@ const FOCUSABLE_SELECTOR = 'button:not(:disabled), a[href], input:not(:disabled)
  */
 export function ResearchPanel({
   useStore, actions, useResearch, useChrome,
-  ensure, selectProject, importProject, compile, editSource, reloadSource, requestCompileFix,
+  ensure, selectProject, compile, editSource, reloadSource, requestCompileFix,
   requestRelatedWork, requestPaperScore, requestFigureOrganize,
   ensurePapers, refreshPapers, searchArxiv, searchWeb, importPaper, removePaper, updatePaper, fetchPaperPdf, loadArtifact, loadFigures, uploadFigures, deleteFigure,
   renameFigure, updateFigure,
@@ -164,13 +165,13 @@ export function ResearchPanel({
   getSxngConfig, saveSxngConfig,
   loadLedger, generateReport,
   exportWiki, importWiki, dismissToast, pruneToasts,
-  toggleTheme, toggleLocale, t,
+  setTheme, setLocale, t,
 }: ResearchPanelProps) {
   const open = useStore(state => state.open)
   const selectedProjectId = useStore(state => state.selectedProjectId)
   const activeTab = useStore(state => state.activeTab)
   const paperFullscreen = useStore(state => state.paperFullscreen)
-  const dark = useChrome(chrome => chrome.dark)
+  const preference = useChrome(chrome => chrome.preference)
   const locale = useChrome(chrome => chrome.locale)
   const projects = useResearch(view => view.projects)
   const projectsStatus = useResearch(view => view.projectsStatus)
@@ -208,8 +209,12 @@ export function ResearchPanel({
   const [projectsCollapsed, setProjectsCollapsed] = useState(
     () => localStorage.getItem(PROJECTS_COLLAPSED_STORAGE_KEY) === '1',
   )
-  // The "import existing project" dialog of the sidebar project list.
-  const [importOpen, setImportOpen] = useState(false)
+  // The unified content width of the non-paper views (0 = full width);
+  // persists across panel opens like the sidebar fold does.
+  const [contentWidth, setContentWidth] = useState(() => {
+    const stored = Number(localStorage.getItem(CONTENT_WIDTH_STORAGE_KEY))
+    return Number.isFinite(stored) && stored >= 0 ? stored : DEFAULT_CONTENT_WIDTH
+  })
   useEffect(() => {
     try {
       localStorage.setItem(PROJECTS_COLLAPSED_STORAGE_KEY, projectsCollapsed ? '1' : '0')
@@ -217,6 +222,13 @@ export function ResearchPanel({
       // A full/blocked localStorage drops persistence; the fold still works.
     }
   }, [projectsCollapsed])
+  useEffect(() => {
+    try {
+      localStorage.setItem(CONTENT_WIDTH_STORAGE_KEY, String(contentWidth))
+    } catch {
+      // A full/blocked localStorage drops persistence; the width still applies.
+    }
+  }, [contentWidth])
 
   // Every read is deferred to the first open rather than fired on mount: the
   // toggle mounts with the sidebar whether or not the panel is ever used.
@@ -344,10 +356,18 @@ export function ResearchPanel({
   }
 
   return (
-    <div ref={rootRef} className={css.workbench} role="dialog" aria-modal="true" aria-label={t('panel.title')}>
+    <div
+      ref={rootRef}
+      className={css.workbench}
+      data-mimir-hue={preference === 'blue' || preference === 'blue-dark' ? 'blue' : preference === 'pink' || preference === 'pink-dark' ? 'pink' : undefined}
+      style={{ '--mimir-content-width': contentWidth === 0 ? 'none' : `${contentWidth}px` } as CSSProperties}
+      role="dialog"
+      aria-modal="true"
+      aria-label={t('panel.title')}
+    >
       {/* Fixed full-viewport dimmer; painted behind the window's own content
           (negative z-index inside the workbench stacking context). */}
-      <div className={css.backdrop} aria-hidden />
+      <div className={css.backdrop} aria-hidden onClick={() => { actions.setOpen(false) }} />
       <aside className={css.side}>
         <div className={css.sideHead}>
           <div className={css.brand}>
@@ -357,32 +377,8 @@ export function ResearchPanel({
               <span className={css.brandSubtitle}>{t('panel.subtitle')}</span>
             </span>
           </div>
-          <div className={css.headActions}>
-            <button
-              type="button"
-              className={css.iconButton}
-              title={t('panel.theme')}
-              aria-label={t('panel.theme')}
-              aria-pressed={dark}
-              onClick={toggleTheme}
-            >
-              {dark ? SUN_ICON : MOON_ICON}
-            </button>
-            <button
-              type="button"
-              className={css.iconButton}
-              title={t('panel.language')}
-              aria-label={t('panel.language')}
-              onClick={toggleLocale}
-            >
-              {locale === 'zh' ? '中' : 'EN'}
-            </button>
-            <button type="button" className={css.close} title={t('panel.close')} aria-label={t('panel.close')} onClick={() => { actions.setOpen(false) }}>
-              ×
-            </button>
-          </div>
         </div>
-        {/* The seven views as a tablist: 1–7 and ArrowUp/Down/Left/Right all
+        {/* The nine views as a tablist: 1–9 and ArrowUp/Down/Left/Right all
             switch, aria-selected carries the active tab to AT. */}
         <nav
           className={css.nav}
@@ -463,15 +459,10 @@ export function ResearchPanel({
               ))}
             </div>
           )}
-          {!projectsCollapsed && projectsStatus === 'ready' && (
-            <button type="button" className={css.btn} onClick={() => { setImportOpen(true) }}>
-              {t('projects.import')}
-            </button>
-          )}
         </div>
         <p className={css.sideFoot}>{t('shortcuts.hint')}</p>
       </aside>
-      <main className={css.content} role="tabpanel" aria-label={t(TAB_KEYS[activeTab])}>
+      <main className={css.content} data-view={activeTab} role="tabpanel" aria-label={t(TAB_KEYS[activeTab])}>
         {activeTab === 'overview' && (
           <OverviewView project={selectedProject} stats={overviewStats} backup={backup} jobs={jobs} experiments={experiments} openLedger={() => { actions.setTab('ledger') }} exportWiki={exportWiki} importWiki={importWiki} t={t} />
         )}
@@ -633,11 +624,25 @@ export function ResearchPanel({
             t={t}
           />
         )}
+        {activeTab === 'settings' && (
+          <SettingsView
+            preference={preference}
+            locale={locale}
+            contentWidth={contentWidth}
+            setTheme={setTheme}
+            setLocale={setLocale}
+            setContentWidth={setContentWidth}
+            sxngConfig={sxngConfig}
+            getSxngConfig={getSxngConfig}
+            saveSxngConfig={saveSxngConfig}
+            imageGen={imageGen}
+            getImageGenConfig={getImageGenConfig}
+            saveImageGenConfig={saveImageGenConfig}
+            t={t}
+          />
+        )}
       </main>
       <ToastHost toasts={toasts} dismissToast={dismissToast} pruneToasts={pruneToasts} t={t} />
-      {importOpen && (
-        <ImportProjectDialog importProject={importProject} onClose={() => { setImportOpen(false) }} t={t} />
-      )}
     </div>
   )
 }

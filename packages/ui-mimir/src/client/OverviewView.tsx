@@ -18,7 +18,6 @@ import { relativeTime, STAGE_KEYS, STAGES } from './view-common.ts'
 import type { ResearchT } from './view-common.ts'
 import { DataSection } from './DataSection.tsx'
 import { EmptyState } from './EmptyState.tsx'
-import { ViewHead } from './ViewHead.tsx'
 import css from './ResearchPanel.module.css'
 
 /** The overview's stat chips; null marks a view not yet loaded. */
@@ -80,7 +79,6 @@ export function OverviewView({ project, stats, backup, jobs, experiments, openLe
     : null
   return (
     <div className={css.overviewWrap}>
-      <ViewHead title={t('tab.overview')} subtitle={t('view.overview.subtitle')} />
       <div className={css.statChips}>
         {chips.map(chip => (
           <span key={chip.key} className={css.statChip}>

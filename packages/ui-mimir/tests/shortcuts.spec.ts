@@ -1,11 +1,11 @@
 /**
  * Behavior tests for the workbench-chrome pure logic: the keyboard-shortcut
  * mapping (tab digits, Escape with the fullscreen-first priority, ⌘/Ctrl+Enter,
- * the editable-target guard) and the theme/locale toggle targets.
+ * the editable-target guard).
  */
 
 import { describe, expect, it } from 'vitest'
-import { nextColorScheme, nextLocale, shortcutFor, TABS } from '../src/client/shortcuts.ts'
+import { shortcutFor, TABS } from '../src/client/shortcuts.ts'
 
 /** A plain keydown with no modifiers, no editable focus, and no fullscreened pane. */
 function key(keyValue: string, patch: Partial<Parameters<typeof shortcutFor>[0]> = {}) {
@@ -13,16 +13,15 @@ function key(keyValue: string, patch: Partial<Parameters<typeof shortcutFor>[0]>
 }
 
 describe('shortcutFor', () => {
-  it('maps digits 1-8 to the rail tabs in order', () => {
+  it('maps digits 1-9 to the rail tabs in order', () => {
     TABS.forEach((tab, index) => {
       expect(shortcutFor(key(String(index + 1)))).toEqual({ type: 'tab', tab })
     })
-    expect(TABS).toHaveLength(8)
-    expect(TABS[TABS.length - 1]).toBe('ledger')
+    expect(TABS).toHaveLength(9)
+    expect(TABS[TABS.length - 1]).toBe('settings')
   })
 
   it('ignores digits outside the tab range and non-digit keys', () => {
-    expect(shortcutFor(key('9'))).toBeNull()
     expect(shortcutFor(key('0'))).toBeNull()
     expect(shortcutFor(key('q'))).toBeNull()
     // A shifted digit arrives as the shifted character, not a digit.
@@ -60,17 +59,5 @@ describe('shortcutFor', () => {
   it('ignores alt combos (browser menu accelerators)', () => {
     expect(shortcutFor(key('1', { altKey: true }))).toBeNull()
     expect(shortcutFor(key('Enter', { metaKey: true, altKey: true }))).toBeNull()
-  })
-})
-
-describe('toggle targets', () => {
-  it('nextColorScheme flips the resolved scheme', () => {
-    expect(nextColorScheme(true)).toBe('light')
-    expect(nextColorScheme(false)).toBe('dark')
-  })
-
-  it('nextLocale flips between the two shipped locales', () => {
-    expect(nextLocale('zh')).toBe('en')
-    expect(nextLocale('en')).toBe('zh')
   })
 })

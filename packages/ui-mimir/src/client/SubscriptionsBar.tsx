@@ -9,8 +9,9 @@
  */
 
 import { useEffect, useState } from 'react'
-import type { ArxivEntry, ArxivSubscriptionView } from 'dsh-mimir/types'
+import type { ArxivEntry } from 'dsh-mimir/types'
 import type { ResearchFailureView, ResearchSubscriptionsView } from './controller.ts'
+import { ConfirmDialog } from './ConfirmDialog.tsx'
 import { subscriptionNewCount, totalNewSubscriptionCount, unimportedNewEntries } from './subscriptions.ts'
 import { failureCopy, type ResearchT } from './view-common.ts'
 import css from './ResearchPanel.module.css'
@@ -83,6 +84,8 @@ export function SubscriptionsBar({
   const [saving, setSaving] = useState(false)
   const [importing, setImporting] = useState<string | null>(null)
   const [importingAll, setImportingAll] = useState(false)
+  // The subscription id awaiting the delete confirmation; null when none.
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
   // The new-paper list defaults to folded (a long list floods the library
   // view); a successful manual check unfolds it once. The fold persists.
   const [newCollapsed, setNewCollapsed] = useState(
@@ -113,10 +116,9 @@ export function SubscriptionsBar({
       .finally(() => { setSaving(false) })
   }
 
-  const remove = (subscription: ArxivSubscriptionView): void => {
-    if (!window.confirm(t('subscriptions.confirmDelete'))) return
+  const remove = (id: string): void => {
     setActionError(null)
-    void deleteArxivSubscription(subscription.id).then((failure) => {
+    void deleteArxivSubscription(id).then((failure) => {
       setActionError(failure === null ? null : `${t('subscriptions.deleteFailed')}：${failure.message}`)
     })
   }
@@ -222,7 +224,7 @@ export function SubscriptionsBar({
                 type="button"
                 className={css.tagRemove}
                 aria-label={`${t('subscriptions.delete')} ${subscription.query}`}
-                onClick={() => { remove(subscription) }}
+                onClick={() => { setPendingDelete(subscription.id) }}
               >
                 ×
               </button>
@@ -282,6 +284,17 @@ export function SubscriptionsBar({
           })}
         </div>
       )}
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={t('subscriptions.confirmDelete')}
+        confirmLabel={t('subscriptions.delete')}
+        onConfirm={() => {
+          if (pendingDelete !== null) remove(pendingDelete)
+          setPendingDelete(null)
+        }}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null) }}
+        t={t}
+      />
     </section>
   )
 }

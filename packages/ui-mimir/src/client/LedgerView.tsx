@@ -15,7 +15,6 @@ import type { ResearchFailureView, ResearchLedgerView, ResearchReportView } from
 import type { ResearchKey } from './locales.ts'
 import type { ResearchT } from './view-common.ts'
 import { renderMarkdown } from './MarkdownView.tsx'
-import { ViewHead } from './ViewHead.tsx'
 import {
   ACTOR_KEYS, LEDGER_LIST_LIMIT, LEDGER_WINDOWS,
   ledgerIsDestructive, ledgerPayloadLine, ledgerTimeParts, ledgerWindowFilter,
@@ -127,17 +126,6 @@ export function LedgerView({
 
   return (
     <div className={css.ledger}>
-      <ViewHead title={t('tab.ledger')} subtitle={t('view.ledger.subtitle')}>
-        <button
-          type="button"
-          className={css.btn}
-          onClick={refresh}
-          disabled={ledger.status === 'loading'}
-        >
-          {t('ledger.refresh')}
-        </button>
-      </ViewHead>
-
       {/* Window × scope controls: the report and the timeline share them. */}
       <div className={css.ledgerControls}>
         <span className={css.ledgerControlLabel}>{t('ledger.windowLabel')}</span>
@@ -250,6 +238,17 @@ export function LedgerView({
           </>
         )}
       </section>
+
+      <div className={css.viewActions}>
+        <button
+          type="button"
+          className={css.btn}
+          onClick={refresh}
+          disabled={ledger.status === 'loading'}
+        >
+          {t('ledger.refresh')}
+        </button>
+      </div>
     </div>
   )
 }

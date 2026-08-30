@@ -14,6 +14,7 @@ import type { ExperimentInput, ExperimentRecord, ExperimentStatus } from 'dsh-mi
 import type { ResearchFailureView, ResearchServersView } from './controller.ts'
 import { metricRowsFromMetrics, metricsFromRows, type MetricRow } from './experiment-form.ts'
 import type { ResearchT } from './view-common.ts'
+import { ModalDialog } from './ModalDialog.tsx'
 import css from './ResearchPanel.module.css'
 
 /** Status options of the select, in lifecycle order. */
@@ -70,10 +71,12 @@ export function ExperimentForm({ projectId, editing, servers, saveExperiment, on
   }
 
   return (
-    <div className={css.serverForm}>
-      <h3 className={css.sectionTitle}>
-        {editing === null ? t('experiments.formNew') : t('experiments.formEdit')}
-      </h3>
+    <ModalDialog
+      open
+      title={editing === null ? t('experiments.formNew') : t('experiments.formEdit')}
+      onClose={onClose}
+    >
+      <div className={css.modalForm}>
       <div className={css.serverFormGrid}>
         <label className={css.field}>
           <span className={css.fieldLabel}>{t('experiments.fieldName')}</span>
@@ -156,6 +159,7 @@ export function ExperimentForm({ projectId, editing, servers, saveExperiment, on
           {t('experiments.cancel')}
         </button>
       </div>
-    </div>
+      </div>
+    </ModalDialog>
   )
 }
